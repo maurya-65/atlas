@@ -6,11 +6,13 @@ Built for SnapTrade Hack Atlantic 2026 (Student Challenge).
 
 ## What it does
 
+The app has two places for results. **Chat** is where you ask for things: each conversation is a thread, newest message at the bottom. The **Inbox** is where Atlas puts what it finds on its own: scan results, rule alerts, daily briefs and trades waiting for your yes or no.
+
 - **Research.** Four analysts each take one angle on a stock (business, regulation, industry, operations). They start from the sources Atlas collects, search the web, and write a short cited report. They read each other's reports and argue once, then a judge gives a verdict (buy more, sell some, hold) with a 0-100 confidence score. *Review my portfolio* does this for the three biggest holdings.
 - **What-if.** "What if Taiwan blocks chip exports?" A planner splits the scenario into the ways it could spread, researchers read the news for each, and a synthesizer maps it onto your holdings with a rough dollar range. The dollar math is done in code.
-- **Scan and rules.** Rule checks (concentration, drawdown, idle cash, price levels) are plain arithmetic. The scan reads new filings and headlines and posts either a note or a decision card.
+- **Scan and rules.** Rule checks (concentration, drawdown, idle cash, price levels) are plain arithmetic, and rules can be added on the Rules & topics page, which also shows what each one finds right now. *Check now* in the Inbox runs the rules and reads new filings and headlines, then posts a note or a decision card.
 - **Daily run.** Once a day: what changed, what the rules flagged, research on the next holding in rotation, and suggestions you can try as paper trades.
-- **Ask.** Quick questions about the portfolio or an investing term. Atlas keeps a one-line note of each conversation so later answers have context.
+- **Ask.** Questions about the portfolio or an investing term, answered in the chat thread you are in. Atlas keeps a one-line note of each answer so later answers have context.
 - **Claude.** An MCP server gives Claude the same tools. Claude can propose a trade; it cannot place one.
 
 ## Run it
@@ -30,9 +32,9 @@ npm run dev                  # http://localhost:3000
 | `SEC_USER_AGENT` | Optional contact string, which SEC EDGAR asks for. |
 | `ATLAS_PASSWORD` | Puts the app behind a sign-in. Optional locally, required when hosted. |
 
-State is one JSON document in `.data/store.json`. *Reset conversation* (under Connections) clears it and keeps the brokerage link.
+State is one JSON document in `.data/store.json`. *Start over* (under Settings) clears it and keeps the brokerage link.
 
-Research runs on Claude Opus 5.5 and costs about $1.50 per stock, most of it the web pages the analysts read. Quick questions use Claude Haiku 5.5.
+Research runs on Claude Opus 5.5 and costs about $1.50 per stock, most of it the web pages the analysts read. Questions in Chat use Claude Sonnet 5.5 at medium effort, about half a cent each (`CHAT_MODEL` in `src/lib/llm.ts`).
 
 ## SnapTrade
 
@@ -88,7 +90,7 @@ Cards Claude creates are marked "From Claude" in the app.
 
 ## Chrome extension
 
-*Deep research in Claude* opens claude.ai with a prompt filled in; you paste the answer back under Connections and Atlas turns it into a card without an API call. The extension in `extension/` skips the copy and paste. See [extension/README.md](extension/README.md).
+*Deep research in Claude* opens claude.ai with a prompt filled in; you paste the answer back under Settings and Atlas turns it into a card without an API call. The extension in `extension/` skips the copy and paste. See [extension/README.md](extension/README.md).
 
 ## Deploy to Vercel
 
@@ -107,7 +109,7 @@ A hosted copy refuses to serve anything until `ATLAS_PASSWORD` is set, and it ne
 npm test
 ```
 
-The tests cover the parts where a mistake costs money or leaks access: trade execution and the live caps, decision cards, rule checks, sign-in and the write checks, and research citations. They need no keys and make no network calls; the model is replaced by a stand-in. They do not cover a real order reaching a broker, reading a real SnapTrade account, or the browser.
+The tests cover the parts where a mistake costs money or leaks access: trade execution and the live caps, decision cards, rule checks and adding rules, sign-in and the write checks, research citations, and which chat an answer belongs to. They need no keys and make no network calls; the model is replaced by a stand-in. They do not cover a real order reaching a broker, reading a real SnapTrade account, or the browser.
 
 ## Code map
 
@@ -120,7 +122,7 @@ The tests cover the parts where a mistake costs money or leaks access: trade exe
 - `src/lib/scenario.ts`: what-if
 - `src/lib/scan.ts`: headline triage and cards
 - `src/lib/daily.ts`, `src/lib/scheduler.ts`, `src/app/api/cron/daily/route.ts`: the daily run and its two timers
-- `src/lib/chat.ts`: quick questions and memory
+- `src/lib/chat.ts`, `src/lib/threads.ts`: answering in a chat, the chat list, memory
 - `src/lib/handoff.ts`: Claude Deep Research prompt and import
 - `src/lib/store.ts`: state, as a file or one Redis key
 - `src/proxy.ts`, `src/lib/auth.ts`: sign-in and write checks
