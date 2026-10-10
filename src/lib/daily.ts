@@ -13,23 +13,56 @@ import type { CardOption, ChatMessage, DailyBrief, DailySchedule, DailyState, Po
 // Nothing here trades. A suggestion is a card, and a trade only happens when the user clicks it.
 
 const STALE_RUN_MS = 30 * 60_000;
-const WEEK_MS = 7 * 24 * 3600_000;
+const DAY_MS = 24 * 3600_000;
+const WEEK_MS = 7 * DAY_MS;
 const MAX_SUGGESTIONS = 3;
 const usd = (x: number) => `$${Math.round(x).toLocaleString("en-US")}`;
 
 // ---------- Pure helpers (unit-checkable) ----------
 
-/** Local calendar day, YYYY-MM-DD. */
-export function localDay(d: Date): string {
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+export function isTimeZone(zone: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: zone });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-function atTime(day: Date, time: string): Date {
+/**
+ * The calendar day and minutes since midnight on a wall clock. The schedule keeps the time zone of the
+ * browser that set it, because a hosted server runs on UTC and "9:00" must still mean the user's 9:00.
+ * Without one (schedules saved before this, or set from Claude) the computer's own zone is used.
+ */
+function wallClock(d: Date, timeZone?: string | null): { day: string; minutes: number } {
+  const zone = timeZone && isTimeZone(timeZone) ? timeZone : undefined;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: zone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(d);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "0";
+  return { day: `${get("year")}-${get("month")}-${get("day")}`, minutes: Number(get("hour")) * 60 + Number(get("minute")) };
+}
+
+/** Local calendar day, YYYY-MM-DD. */
+export function localDay(d: Date, timeZone?: string | null): string {
+  return wallClock(d, timeZone).day;
+}
+
+function minutesOf(time: string): number {
   const [h, m] = time.split(":").map(Number);
-  const d = new Date(day);
-  d.setHours(h || 0, m || 0, 0, 0);
-  return d;
+  return (h || 0) * 60 + (m || 0);
+}
+
+/** The moment today's set time falls on (it may already be past). */
+function setTimeToday(schedule: DailySchedule, now: Date): Date {
+  const startOfMinute = now.getTime() - (now.getTime() % 60_000);
+  return new Date(startOfMinute + (minutesOf(schedule.time) - wallClock(now, schedule.timeZone).minutes) * 60_000);
 }
 
 /** A run that has been "running" for over 30 minutes is treated as dead. */
@@ -41,26 +74,45 @@ export function isRunning(schedule: DailySchedule, now: Date): boolean {
 export function isDue(schedule: DailySchedule, now: Date): boolean {
   if (!schedule.enabled) return false;
   if (isRunning(schedule, now)) return false;
-  if (schedule.lastRunDay === localDay(now)) return false;
-  return now.getTime() >= atTime(now, schedule.time).getTime();
+  const clock = wallClock(now, schedule.timeZone);
+  if (schedule.lastRunDay === clock.day) return false;
+  return clock.minutes >= minutesOf(schedule.time);
+}
+
+/** Due for a host whose timer fires once a day at its own hour: on, not run yet today, nothing running. */
+export function isDueToday(schedule: DailySchedule, now: Date): boolean {
+  return schedule.enabled && !isRunning(schedule, now) && schedule.lastRunDay !== localDay(now, schedule.timeZone);
 }
 
 /** ISO time of the next scheduled run (local time), or null when off. A run that is already due returns `now`. */
 export function nextRunAt(schedule: DailySchedule, now: Date): string | null {
   if (!schedule.enabled) return null;
   if (isDue(schedule, now)) return now.toISOString();
-  const today = atTime(now, schedule.time);
-  if (schedule.lastRunDay !== localDay(now) && now.getTime() < today.getTime()) return today.toISOString();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  return atTime(tomorrow, schedule.time).toISOString();
+  const today = setTimeToday(schedule, now);
+  if (schedule.lastRunDay !== localDay(now, schedule.timeZone) && now.getTime() < today.getTime()) return today.toISOString();
+  return new Date(today.getTime() + DAY_MS).toISOString();
+}
+
+export async function setSchedule(patch: { enabled?: boolean; time?: string; depth?: number; timeZone?: string }): Promise<void> {
+  await updateStore((s) => {
+    const wasOn = s.daily.enabled;
+    if (patch.time !== undefined) s.daily.time = patch.time;
+    if (patch.depth !== undefined) s.daily.depth = patch.depth;
+    if (patch.enabled !== undefined) s.daily.enabled = patch.enabled;
+    if (patch.timeZone !== undefined && isTimeZone(patch.timeZone)) s.daily.timeZone = patch.timeZone;
+    // Turning it on after today's time has passed: the first run is tomorrow, not right now.
+    if (!wasOn && s.daily.enabled) {
+      const now = new Date();
+      if (now.getTime() >= setTimeToday(s.daily, now).getTime()) s.daily.lastRunDay = localDay(now, s.daily.timeZone);
+    }
+  });
 }
 
 /** Current holdings in the order the daily run researches them: never researched first (biggest first), then longest ago. */
 export function watchList(portfolio: Portfolio, schedule: DailySchedule) {
   const total = portfolio.total || 1;
   return portfolio.holdings
-    .filter((h) => h.value > 0 && isResearchableStock(h.ticker))
+    .filter((h) => h.value > 0 && isResearchableStock(h.ticker, h.kind))
     .map((h) => ({ ticker: h.ticker, name: h.name, weight: h.value / total, value: h.value, lastResearchedAt: schedule.researchedAt[h.ticker] ?? null }))
     .sort((a, b) => {
       if (!a.lastResearchedAt && !b.lastResearchedAt) return b.value - a.value;
@@ -94,6 +146,7 @@ export async function dailyState(): Promise<DailyState> {
     lastRunAt: d.lastRunAt,
     nextRunAt: nextRunAt(d, now),
     running: isRunning(d, now),
+    hostTimer: Boolean(process.env.VERCEL),
     watch,
   };
 }
@@ -303,10 +356,8 @@ async function run(opts: { trigger: Trigger; onEvent?: (e: ResearchEvent) => voi
   }
 
   // g. Post the brief, then the suggestions.
-  const next = new Date(now);
-  next.setDate(next.getDate() + 1);
   const brief: DailyBrief = {
-    day: localDay(now),
+    day: localDay(now, sched.timeZone),
     trigger: opts.trigger,
     portfolio: { total: p.total, cash: p.cash, source: p.source, changeDollars, changePct, since: snap?.at ?? null },
     movers,
@@ -314,7 +365,7 @@ async function run(opts: { trigger: Trigger; onEvent?: (e: ResearchEvent) => voi
     researched,
     summary,
     recommendations: cards.length,
-    nextRunAt: sched.enabled ? atTime(next, sched.time).toISOString() : null,
+    nextRunAt: sched.enabled ? new Date(setTimeToday(sched, now).getTime() + DAY_MS).toISOString() : null,
   };
   posted.push(...(await addMessages(newMessage({ kind: "daily", text: summary, origin, daily: brief }), ...cards)));
 
@@ -330,7 +381,7 @@ async function run(opts: { trigger: Trigger; onEvent?: (e: ResearchEvent) => voi
       values: Object.fromEntries(p.holdings.map((h) => [h.ticker, h.value])),
     };
     s.daily.lastRunAt = now.toISOString();
-    s.daily.lastRunDay = localDay(now);
+    s.daily.lastRunDay = localDay(now, s.daily.timeZone);
   });
   return posted;
 }

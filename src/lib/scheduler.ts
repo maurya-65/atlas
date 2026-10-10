@@ -12,7 +12,7 @@ async function tick() {
     if (!isDue(s.daily, new Date())) return;
     // One attempt a day: a run that fails halfway must not retry every minute and spend API credit again.
     await updateStore((st) => {
-      st.daily.lastRunDay = localDay(new Date());
+      st.daily.lastRunDay = localDay(new Date(), st.daily.timeZone);
     });
     console.log("Atlas daily run: starting");
     await runDaily({ trigger: "schedule" });

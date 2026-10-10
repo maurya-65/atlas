@@ -78,6 +78,12 @@ export default function DailyPanel({
           </label>
         </div>
 
+        {daily.hostTimer && (
+          <p className="text-xs text-muted-foreground">
+            This copy of Atlas is hosted, so the run starts when the host’s once-a-day timer fires. That can be later than the time above.
+          </p>
+        )}
+
         {daily.watch.length > 0 && (
           <p>
             <span className="text-muted-foreground">Watching: </span>

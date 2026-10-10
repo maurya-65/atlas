@@ -32,7 +32,7 @@ const { runScenario } = await import("../lib/scenario");
 const { researchAndPost, reviewPortfolio } = await import("../lib/review");
 const { watchOnce } = await import("../lib/watch");
 const { createTradeProposal } = await import("../lib/proposals");
-const { runDaily, dailyState, localDay } = await import("../lib/daily");
+const { runDaily, dailyState, setSchedule } = await import("../lib/daily");
 const { LIVE_LIMITS, liveSpentToday } = await import("../lib/trading");
 
 const ORIGIN = "Claude (via Atlas MCP)";
@@ -304,22 +304,7 @@ server.registerTool(
   },
   async ({ enabled, time, depth }) =>
     safe(async () => {
-      if (enabled !== undefined || time !== undefined || depth !== undefined) {
-        await updateStore((s) => {
-          const wasOn = s.daily.enabled;
-          if (time !== undefined) s.daily.time = time;
-          if (depth !== undefined) s.daily.depth = depth;
-          if (enabled !== undefined) s.daily.enabled = enabled;
-          // Turning it on after today's time: first run is tomorrow.
-          if (!wasOn && s.daily.enabled) {
-            const now = new Date();
-            const [h, m] = s.daily.time.split(":").map(Number);
-            const at = new Date(now);
-            at.setHours(h, m, 0, 0);
-            if (now >= at) s.daily.lastRunDay = localDay(now);
-          }
-        });
-      }
+      if (enabled !== undefined || time !== undefined || depth !== undefined) await setSchedule({ enabled, time, depth });
       return text(await dailyState());
     }),
 );

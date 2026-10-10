@@ -332,7 +332,7 @@ export default function Home() {
     onScan: scan,
     onReview: review,
     onRunDaily: runDaily,
-    onSetDaily: (patch) => mutate("/api/daily", patch),
+    onSetDaily: (patch) => mutate("/api/daily", { ...patch, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
     onImport: importReport,
     onSetInterests: (interests) => mutate("/api/interests", { interests }),
     onDeleteRule: (id) => mutate("/api/rules", { action: "delete", id }),
