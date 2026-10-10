@@ -37,11 +37,12 @@ function UserBubble({ m }: { m: ChatMessage }) {
 }
 
 /** Atlas's reply in a chat: plain text on the left, like the user's bubble on the right. */
-function AgentBubble({ m }: { m: ChatMessage }) {
+function AgentBubble({ m, onChoose, disabled }: { m: ChatMessage; onChoose: Choose; disabled: boolean }) {
   return (
     <div className="flex justify-start">
       <div className="glass max-w-[90%] rounded-3xl rounded-bl-lg px-4 py-2.5 text-sm leading-relaxed">
         <Markdown text={m.text} />
+        <DecisionOptions messageId={m.id} options={m.options} resolved={m.resolved} onChoose={onChoose} disabled={disabled} />
       </div>
     </div>
   );
@@ -155,7 +156,7 @@ export function MessageView({ m, onChoose, busy }: { m: ChatMessage; onChoose: C
     case "daily":
       return m.daily ? <DailyBriefCard m={m} b={m.daily} /> : <Note m={m} kind="Daily brief" />;
     default:
-      return m.threadId ? <AgentBubble m={m} /> : <Note m={m} kind="Atlas" />;
+      return m.threadId ? <AgentBubble m={m} onChoose={onChoose} disabled={busy} /> : <Note m={m} kind="Atlas" />;
   }
 }
 

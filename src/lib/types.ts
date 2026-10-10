@@ -49,7 +49,7 @@ export interface Rule {
 }
 
 /** open_claude is a plain link to claude.ai (payload.url); it never reaches the server. */
-export type ActionKind = "approve_trade" | "research" | "add_interest" | "dismiss" | "open_claude";
+export type ActionKind = "approve_trade" | "research" | "what_if" | "add_interest" | "dismiss" | "open_claude";
 
 export interface CardOption {
   label: string;
@@ -61,6 +61,8 @@ export interface CardOption {
     side?: "BUY" | "SELL";
     dollars?: number;
     topic?: string;
+    /** For what_if: the scenario to run */
+    scenario?: string;
     url?: string;
     /** Always simulate this trade in the paper book, even in live mode (daily-run suggestions) */
     paper?: boolean;

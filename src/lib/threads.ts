@@ -22,7 +22,11 @@ export function threadsOf(messages: ChatMessage[]): ChatThread[] {
     thread.updatedAt = m.createdAt;
     byId.set(m.threadId, thread);
   }
-  return [...byId.values()].map((t) => ({ ...t, title: t.title || "New chat" })).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  // Reversed first, so two chats active in the same millisecond keep the newer one on top.
+  return [...byId.values()]
+    .reverse()
+    .map((t) => ({ ...t, title: t.title || "New chat" }))
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 export async function say(threadId: string, text: string): Promise<ChatMessage> {

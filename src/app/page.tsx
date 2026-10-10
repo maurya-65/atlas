@@ -282,15 +282,16 @@ export default function Home() {
   const choose = async (messageId: string, optionIndex: number) => {
     setBusy("Working on it…");
     setError(null);
-    let next: { research?: string } | undefined;
+    let next: { research?: string; whatIf?: string } | undefined;
     try {
-      ({ next } = await api<{ next?: { research?: string } }>("/api/action", { messageId, optionIndex }));
+      ({ next } = await api<{ next?: { research?: string; whatIf?: string } }>("/api/action", { messageId, optionIndex }));
     } finally {
       await refresh();
       setBusy(null);
     }
-    // Research chosen on a card runs in a chat.
+    // Research or a what-if chosen on a card runs in a chat.
     if (next?.research) research(next.research);
+    else if (next?.whatIf) whatIf(next.whatIf);
   };
 
   const switchMode = async (mode: Mode, confirm?: string) => {

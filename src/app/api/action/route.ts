@@ -64,6 +64,13 @@ export async function POST(req: Request) {
         // The app runs the research itself so it can stream the agents live.
         return Response.json({ messages: [], next: { research: p.ticker } });
       }
+      case "what_if": {
+        if (!p.scenario) {
+          await reopen();
+          throw new Error("No scenario on this card.");
+        }
+        return Response.json({ messages: [], next: { whatIf: p.scenario } });
+      }
       case "add_interest": {
         const topic = p.topic;
         if (!topic) {

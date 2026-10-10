@@ -11,14 +11,16 @@ const A = "aaaaaaaa-1111";
 const B = "bbbbbbbb-2222";
 
 let call: { model: string; effort: string; prompt: string } | null = null;
+let next: unknown = null;
 
 beforeEach(async () => {
   await resetStore();
   call = null;
+  next = null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- replacing an SDK method with a test double
   (anthropic.beta.messages as any).parse = async (params: any) => {
     call = { model: params.model, effort: params.output_config.effort, prompt: params.messages[0].content };
-    return { stop_reason: "end_turn", parsed_output: { answer: "Your biggest holding is NVDA.", note: "Asked about the biggest holding." } };
+    return { stop_reason: "end_turn", parsed_output: { answer: "Your biggest holding is NVDA.", note: "Asked about the biggest holding.", next } };
   };
 });
 
@@ -29,6 +31,8 @@ test("a question is answered by the cheaper model at medium effort, inside its o
   assert.equal(reply.kind, "agent");
   assert.deepEqual([call?.model, call?.effort], ["claude-sonnet-5-5", "medium"]);
   assert.match(call!.prompt, /Question: What is my biggest holding\?$/);
+  // Whether a rule is crossed is told to the model, worked out in code: the demo portfolio is 33.1% NVDA and 31.3% AAPL.
+  assert.match(call!.prompt, /grows past 25% of my portfolio\. \(crossed right now: NVDA is 33\.1% of your portfolio; AAPL is 31\.3% of your portfolio\)/);
   assert.deepEqual((await readStore()).memory.map((n) => n.text), ["Asked about the biggest holding."]);
 });
 
@@ -41,6 +45,26 @@ test("an answer sees its own chat and not the others", async () => {
   await answer(A);
   assert.match(call!.prompt, /This chat so far:\nUser: First question\nAtlas: First answer\.\n\nQuestion: And the follow-up\?/);
   assert.doesNotMatch(call!.prompt, /bonds/i);
+});
+
+test("an answer that needs research or a what-if comes with a button for it", async () => {
+  const asked = async (suggestion: unknown) => {
+    next = suggestion;
+    await say(A, "a question");
+    return (await answer(A)).options;
+  };
+  assert.deepEqual(await asked({ kind: "research", value: "tsla" }), [
+    { label: "Research TSLA", kind: "research", recommended: true, payload: { ticker: "TSLA" } },
+  ]);
+  const oil = "What if oil prices double next year?";
+  assert.deepEqual(await asked({ kind: "what_if", value: oil }), [
+    { label: `Run a what-if: ${oil}`, kind: "what_if", recommended: true, payload: { scenario: oil } },
+  ]);
+  assert.equal(await asked(null), undefined);
+  // Not something the research can read, or not a ticker at all: no button.
+  assert.equal(await asked({ kind: "research", value: "SPY" }), undefined);
+  assert.equal(await asked({ kind: "research", value: "Tesla Motors" }), undefined);
+  assert.equal(await asked({ kind: "what_if", value: "x" }), undefined);
 });
 
 test("there has to be a question to answer", async () => {

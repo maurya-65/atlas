@@ -77,6 +77,11 @@ test("unknown cards, bad option numbers and decided cards are refused", async ()
   assert.equal((await click(m)).status, 409);
 });
 
+test("a what-if button hands its scenario to the app", async () => {
+  const m = await card([{ label: "Run a what-if: oil", kind: "what_if", payload: { scenario: "What if oil doubles?" } }]);
+  assert.deepEqual(await body(await click(m)), { messages: [], next: { whatIf: "What if oil doubles?" } });
+});
+
 // Live mode.
 
 test("live mode needs LIVE typed out and a connected brokerage", async () => {

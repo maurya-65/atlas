@@ -84,7 +84,7 @@ export default function Composer({
     whatif: "Describe an event, like “What if Tesla cuts prices again?”",
   }[mode];
   const hint = {
-    ask: "A quick answer from your holdings and what Atlas remembers. It doesn't read the news; use Research for that.",
+    ask: "A quick answer from your holdings and what Atlas remembers. If the answer needs research, Atlas offers a button to run it.",
     research: `Atlas reads filings, news and the web about a stock and gives a verdict. Type a ticker like ${example}.`,
     sector: "Atlas checks what is happening in a sector and what it means for your stocks.",
     whatif: "Describe an event and Atlas traces how it could reach your stocks.",

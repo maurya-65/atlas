@@ -105,7 +105,7 @@ export function ChatStart({
   const groups = [
     {
       title: "Ask a question",
-      text: "A quick answer from your holdings and your rules. It doesn't read the news.",
+      text: "A quick answer from your holdings and your rules. If it needs research, Atlas offers a button for it.",
       chips: ASK_EXAMPLES.map((q) => ({ label: q, run: () => onAsk(q) })),
     },
     {

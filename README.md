@@ -12,7 +12,7 @@ The app has two places for results. **Chat** is where you ask for things: each c
 - **What-if.** "What if Taiwan blocks chip exports?" A planner splits the scenario into the ways it could spread, researchers read the news for each, and a synthesizer maps it onto your holdings with a rough dollar range. The dollar math is done in code.
 - **Scan and rules.** Rule checks (concentration, drawdown, idle cash, price levels) are plain arithmetic, and rules can be added on the Rules & topics page, which also shows what each one finds right now. *Check now* in the Inbox runs the rules and reads new filings and headlines, then posts a note or a decision card.
 - **Daily run.** Once a day: what changed, what the rules flagged, research on the next holding in rotation, and suggestions you can try as paper trades.
-- **Ask.** Questions about the portfolio or an investing term, answered in the chat thread you are in. Atlas keeps a one-line note of each answer so later answers have context.
+- **Ask.** Questions about the portfolio or an investing term, answered in the chat thread you are in. If a question needs research or a what-if, the answer comes with a button that runs it. Atlas keeps a one-line note of each answer so later answers have context.
 - **Claude.** An MCP server gives Claude the same tools. Claude can propose a trade; it cannot place one.
 
 ## Run it
