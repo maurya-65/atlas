@@ -14,6 +14,8 @@ export const anthropic = new Anthropic(
  * Never used for arithmetic — thresholds, percentages and caps are plain code.
  */
 export const MAIN_MODEL = "claude-opus-5-5";
+/** Quick questions in the app are not research: the small model answers them for a fraction of a cent. */
+export const CHAT_MODEL = "claude-haiku-5-5";
 
 export class RefusalError extends Error {}
 
@@ -27,15 +29,17 @@ export async function structured<S extends z.ZodType>(opts: {
   schema: S;
   maxTokens?: number;
   effort?: "low" | "medium" | "high";
+  model?: string;
 }): Promise<z.infer<S>> {
+  const model = opts.model ?? MAIN_MODEL;
   const response = await anthropic.beta.messages.parse({
-    model: MAIN_MODEL,
+    model,
     max_tokens: opts.maxTokens ?? 16000,
     system: opts.system,
     messages: [{ role: "user", content: opts.prompt }],
     output_config: { format: betaZodOutputFormat(opts.schema), effort: opts.effort ?? "medium" },
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
+    // The small model has no server-side refusal fallback.
+    ...(model === MAIN_MODEL ? { betas: ["server-side-fallback-2026-07-01" as const], fallbacks: "default" as const } : {}),
   });
   if (response.stop_reason === "refusal") throw new RefusalError("The model declined this request.");
   if (response.parsed_output == null) throw new Error(`Model returned no parseable output (stop_reason: ${response.stop_reason}).`);

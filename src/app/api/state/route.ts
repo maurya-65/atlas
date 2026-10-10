@@ -40,6 +40,7 @@ export async function GET() {
     selectedAccountId: s.selectedAccountId,
     limits: { ...LIVE_LIMITS, usedToday: await liveSpentToday() },
     lastScanAt: s.lastScanAt,
+    memory: s.memory,
     daily: await dailyState(),
     passwordProtected: Boolean(atlasPassword()),
   });

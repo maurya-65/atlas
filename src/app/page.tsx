@@ -217,6 +217,11 @@ export default function Home() {
     );
   };
 
+  const ask = (question: string) => {
+    setPendingUser({ id: "pending", kind: "user", text: question, createdAt: new Date().toISOString() });
+    run("Thinking…", () => api("/api/chat", { question }));
+  };
+
   const scan = () => run("Reading filings, news and government notices…", () => api("/api/scan", {}));
 
   /** Run research that streams the agents' conversation into the live agent room. */
@@ -354,6 +359,7 @@ export default function Home() {
     onImport: importReport,
     onSetInterests: (interests) => mutate("/api/interests", { interests }),
     onDeleteRule: (id) => mutate("/api/rules", { action: "delete", id }),
+    onClearMemory: () => mutate("/api/memory", { action: "clear" }),
     onSelectAccount: (accountId) => mutate("/api/account", { accountId }),
     onSwitchMode: switchMode,
     onReset: reset,
@@ -484,6 +490,7 @@ export default function Home() {
                 onResearch={research}
                 onWhatIf={whatIf}
                 onSector={sector}
+                onAsk={ask}
                 onReview={review}
                 onScan={scan}
                 canReview={Boolean(state.portfolio?.holdings.length)}

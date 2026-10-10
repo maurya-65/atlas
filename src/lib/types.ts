@@ -97,6 +97,16 @@ export interface ChatMessage {
   daily?: DailyBrief;
   /** where the card came from, e.g. "Claude (via Atlas MCP)" */
   origin?: string;
+  /** an answer to a quick question: the id of the question's message */
+  replyTo?: string;
+}
+
+/** One line Atlas keeps about a conversation, so later answers have context. */
+export interface MemoryNote {
+  text: string;
+  at: string;
+  /** "atlas" = a question asked in the app; "claude" = saved by Claude through the MCP server */
+  from: "atlas" | "claude";
 }
 
 export interface GraphNode {
@@ -210,6 +220,7 @@ export interface Store {
   seenSignals: string[];
   lastScanAt: string | null;
   daily: DailySchedule;
+  memory: MemoryNote[];
 }
 
 /** The daily run: once a day Atlas looks at the portfolio, deep-researches part of it and posts a brief. */

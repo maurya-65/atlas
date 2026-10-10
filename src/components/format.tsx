@@ -1,4 +1,4 @@
-import type { ChatMessage, DailyState, Mode, Portfolio, Rule } from "@/lib/types";
+import type { ChatMessage, DailyState, MemoryNote, Mode, Portfolio, Rule } from "@/lib/types";
 import { Fragment, type ReactNode } from "react";
 
 export interface AppState {
@@ -13,6 +13,7 @@ export interface AppState {
   selectedAccountId: string | null;
   limits: { perTrade: number; perDay: number; usedToday: number };
   lastScanAt: string | null;
+  memory: MemoryNote[];
   daily?: DailyState;
   /** Why the brokerage portfolio couldn't be loaded, in plain words (sent by /api/state when it fails) */
   portfolioError?: string | null;

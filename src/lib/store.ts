@@ -61,6 +61,7 @@ function fresh(): Store {
     seenSignals: [],
     lastScanAt: null,
     daily: { enabled: false, time: "09:00", depth: 1, lastRunAt: null, lastRunDay: null, runningSince: null, researchedAt: {}, lastSnapshot: null },
+    memory: [],
   };
 }
 

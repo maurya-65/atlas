@@ -34,6 +34,7 @@ const { watchOnce } = await import("../lib/watch");
 const { createTradeProposal } = await import("../lib/proposals");
 const { runDaily, dailyState, setSchedule } = await import("../lib/daily");
 const { LIVE_LIMITS, liveSpentToday } = await import("../lib/trading");
+const { remember } = await import("../lib/chat");
 
 const ORIGIN = "Claude (via Atlas MCP)";
 const APP_URL = process.env.ATLAS_APP_URL ?? "http://localhost:3000";
@@ -306,6 +307,27 @@ server.registerTool(
     safe(async () => {
       if (enabled !== undefined || time !== undefined || depth !== undefined) await setSchedule({ enabled, time, depth });
       return text(await dailyState());
+    }),
+);
+
+server.registerTool(
+  "atlas_memory",
+  {
+    title: "What Atlas remembers",
+    description:
+      "Notes from earlier conversations with this user: questions asked in the Atlas app and notes saved from Claude. Read it at the start of a conversation about their portfolio. After a discussion, or when the user states a preference or a decision, add one short sentence so the next conversation has context. Never store account numbers, passwords or keys.",
+    inputSchema: {
+      op: z.enum(["read", "add"]),
+      note: z.string().max(400).optional().describe("For add: one sentence, e.g. 'Asked about selling NVDA; decided to wait for earnings.'"),
+    },
+  },
+  async ({ op, note }) =>
+    safe(async () => {
+      if (op === "add") {
+        if (!note?.trim()) throw new Error("note is required to add to memory");
+        await remember(note, "claude");
+      }
+      return text({ notes: (await readStore()).memory });
     }),
 );
 

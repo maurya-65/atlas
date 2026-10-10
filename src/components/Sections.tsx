@@ -43,6 +43,7 @@ export interface ViewProps {
   onImport: (text: string) => Promise<void>;
   onSetInterests: (interests: string[]) => Promise<void>;
   onDeleteRule: (id: string) => Promise<void>;
+  onClearMemory: () => Promise<void>;
   onSelectAccount: (id: string) => Promise<void>;
   /** Paper / live switch; going live needs the typed confirmation */
   onSwitchMode: SwitchMode;
@@ -421,7 +422,7 @@ export function DailyView({ state, busy, onSetDaily, onRunDaily }: ViewProps) {
 
 /* ---------- Rules & interests ---------- */
 
-export function RulesView({ state, onDeleteRule, onSetInterests }: ViewProps) {
+export function RulesView({ state, onDeleteRule, onSetInterests, onClearMemory }: ViewProps) {
   const [draft, setDraft] = useState("");
   const add = async () => {
     const v = draft.trim();
@@ -507,6 +508,37 @@ export function RulesView({ state, onDeleteRule, onSetInterests }: ViewProps) {
                 Add
               </Button>
             </form>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>What Atlas remembers</CardTitle>
+            <CardDescription>One line per conversation, here or in Claude, so later answers have context.</CardDescription>
+            {state.memory.length > 0 && (
+              <CardAction>
+                <Button variant="outline" size="xs" onClick={onClearMemory}>
+                  Forget all
+                </Button>
+              </CardAction>
+            )}
+          </CardHeader>
+          <CardContent>
+            {state.memory.length === 0 ? (
+              <p className="text-muted-foreground">Nothing yet. Ask Atlas a question and a note appears here.</p>
+            ) : (
+              <ul className="space-y-2.5">
+                {[...state.memory].reverse().map((n) => (
+                  <li key={n.at}>
+                    {n.text}
+                    <span className="block text-xs text-muted-foreground">
+                      {timeAgo(n.at)}
+                      {n.from === "claude" && " · from Claude"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </CardContent>
         </Card>
 
