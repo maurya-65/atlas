@@ -95,7 +95,7 @@ export default function DecisionOptions({
       {openedClaude && (
         <p className="mt-2 text-sm text-muted-foreground">
           In Claude: turn on <strong className="text-foreground">Research</strong>, check the prompt, and press send. When it finishes, copy the whole
-          answer and paste it into <strong className="text-foreground">Bring back a Claude report</strong> under Connections.
+          answer and paste it into <strong className="text-foreground">Bring back a Claude report</strong> under Settings.
         </p>
       )}
       {error && <p className="mt-2 text-sm text-live">That didn’t go through: {error}</p>}

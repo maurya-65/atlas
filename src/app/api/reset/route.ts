@@ -23,7 +23,7 @@ export async function POST() {
           `Hi, I'm Atlas. Through SnapTrade I can see ${account}: ${count} and ${usd(p.cash)} in cash, ${usd(p.total)} in total.\n\n` +
           "I watch that account, read public news, SEC filings and government notices about the companies you own, and tell you when something matters. " +
           "I never trade on my own. Anything that needs a decision shows up as a card with my recommendation, and you choose. You're in **paper mode**: every trade is simulated and no real money moves.\n\n" +
-          'Try a **what-if** ("What if Tesla cuts prices again?") or **research** one of your stocks below.';
+          'Open Chat to ask a question, research one of your stocks or try a **what-if** ("What if Tesla cuts prices again?"). Things I find on my own land in this Inbox.';
       });
     }
   } catch {

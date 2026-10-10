@@ -53,7 +53,7 @@ function fresh(): Store {
         text:
           "Hi, I'm Atlas. I watch your real brokerage account, read public news, SEC filings and government notices about the companies you own or care about, and tell you when something matters.\n\n" +
           "I never trade on my own. Anything that needs a decision shows up as a card with my recommendation, and you choose. Right now you're in **paper mode**: every trade is simulated and no real money moves.\n\n" +
-          "Start by connecting your brokerage under Connections. Then run a **what-if** or **research** one of your stocks below. To chat with me, add Atlas to the Claude app.",
+          "Connect your brokerage under Settings, then open Chat to ask a question, research one of your stocks or try a **what-if**. Things I find on my own, like news about your holdings, land in this Inbox.",
       },
     ],
     paper: null,

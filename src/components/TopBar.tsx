@@ -10,7 +10,7 @@ interface Props {
   mode: Mode;
   onToggleSidebar: () => void;
   sidebarOpen: boolean;
-  /** Goes to the feed and puts the cursor in the "Ask Atlas" box */
+  /** Goes to Chat and puts the cursor in the message box */
   onAsk: () => void;
 }
 
@@ -30,8 +30,8 @@ export default function TopBar({ title, description, mode, onToggleSidebar, side
           <p className="hidden truncate text-sm text-muted-foreground sm:block">{description}</p>
         </div>
         <a
-          href="#connections"
-          title={live ? "Live mode: trades you approve use real money. Change it under Connections." : "Paper mode: nothing real is traded. Change it under Connections."}
+          href="#settings"
+          title={live ? "Live mode: trades you approve use real money. Change it under Settings." : "Paper mode: nothing real is traded. Change it under Settings."}
           className={cn(
             "inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition-colors",
             live ? "border-live/40 bg-live/10 text-live hover:bg-live/15" : "border-white/12 bg-white/[0.05] text-muted-foreground hover:text-foreground",

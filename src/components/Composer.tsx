@@ -4,75 +4,50 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import { ExternalIcon } from "./icons";
 import { cn } from "./ui";
 
-// The box does the research jobs and quick questions. Questions go to the small model and never start
-// research, so they cost next to nothing; longer conversation happens in the Claude app through the
-// Atlas MCP server.
-type ComposerMode = "whatif" | "research" | "sector" | "ask";
-
-const ASK_SUGGESTIONS = ["What is my biggest risk right now?", "What does an index fund do?"];
-
-const WHAT_IF_SUGGESTIONS = [
-  "What if Tesla cuts prices again?",
-  "What if new crypto regulation hits Bitcoin?",
-  "What if Apple loses its App Store fees?",
-];
-
-// Only used when the portfolio has no holdings to suggest.
-const RESEARCH_SUGGESTIONS = ["NVDA", "AAPL", "TSLA"];
-const SECTOR_SUGGESTIONS = ["Semiconductors", "Electric vehicles", "Banks"];
+type ComposerMode = "ask" | "research" | "sector" | "whatif";
 
 const TICKER = /^[A-Z.\-]{1,10}$/;
 
 const MODES: [ComposerMode, string][] = [
+  ["ask", "Ask"],
   ["research", "Research a stock"],
   ["sector", "Research a sector"],
   ["whatif", "What if"],
-  ["ask", "Ask"],
 ];
 
-const CHIP =
-  "min-h-8 max-w-full rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-left text-xs text-muted-foreground backdrop-blur-md transition-colors hover:border-white/20 hover:bg-white/[0.1] hover:text-foreground disabled:pointer-events-none disabled:opacity-40";
-
-/** "Ask Atlas": a chat-style box docked under the feed. Pick the job, type, send; results arrive in the feed. */
+/** The box under a chat. Pick what Atlas should do with what you type; Ask is the default. */
 export default function Composer({
-  onWhatIf,
+  onAsk,
   onResearch,
   onSector,
-  onAsk,
-  onReview,
-  onScan,
-  canReview,
+  onWhatIf,
   claudeLinkFor,
   claudeSectorLinkFor,
   tickers,
   busy,
   inputRef,
 }: {
-  onWhatIf: (scenario: string) => void;
+  onAsk: (question: string) => void;
   onResearch: (ticker: string) => void;
   onSector: (sector: string) => void;
-  onAsk: (question: string) => void;
-  onReview: () => void;
-  onScan: () => void;
-  /** False when there are no real holdings to review */
-  canReview: boolean;
+  onWhatIf: (scenario: string) => void;
   /** claude.ai link with a Deep Research prompt for this ticker */
   claudeLinkFor: (ticker: string) => string;
   /** claude.ai link with a Deep Research prompt for a whole sector */
   claudeSectorLinkFor: (sector: string) => string;
-  /** The user's biggest holdings, suggested for research */
+  /** The user's biggest holdings, to recognise one named in a sentence */
   tickers: string[];
   busy: boolean;
   /** Lets the page focus the box (the header's "Ask Atlas" button) */
   inputRef?: RefObject<HTMLTextAreaElement | null>;
 }) {
   const [text, setText] = useState("");
-  const [mode, setMode] = useState<ComposerMode>("whatif");
+  const [mode, setMode] = useState<ComposerMode>("ask");
   const ownRef = useRef<HTMLTextAreaElement>(null);
   const ref = inputRef ?? ownRef;
 
-  // Typing is free in every mode. In research mode the ticker is picked out of what was typed:
-  // a holding if one is named ("research MSFT please"), otherwise a single word on its own ("nvda").
+  // In research mode the ticker is picked out of what was typed: a holding if one is named
+  // ("research MSFT please"), otherwise a single word on its own ("nvda").
   const tickerFrom = (value: string) => {
     const words = value.toUpperCase().replace(/[^A-Z.\-\s]/g, " ").split(/\s+/).filter(Boolean);
     return words.find((w) => tickers.includes(w)) ?? (words.length === 1 ? words[0] : "");
@@ -80,7 +55,6 @@ export default function Composer({
   const ticker = tickerFrom(text);
   const valid = mode === "research" ? TICKER.test(ticker) : Boolean(text.trim());
 
-  // Grow with the text, up to a few lines.
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -88,61 +62,42 @@ export default function Composer({
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }, [text, mode, ref]);
 
-  const send = (value: string, as: ComposerMode = mode) => {
-    const v = value.trim();
+  const send = () => {
+    const v = text.trim();
     if (!v || busy) return;
-    if (as === "whatif") onWhatIf(v);
-    else if (as === "ask") onAsk(v);
-    else if (as === "sector") onSector(v);
+    if (mode === "ask") onAsk(v);
+    else if (mode === "whatif") onWhatIf(v);
+    else if (mode === "sector") onSector(v);
     else {
-      const sym = tickerFrom(v);
-      if (!TICKER.test(sym)) return;
-      onResearch(sym);
+      if (!TICKER.test(ticker)) return;
+      onResearch(ticker);
     }
     setText("");
     ref.current?.focus();
   };
 
+  const example = tickers[0] ?? "AAPL";
+  const placeholder = {
+    ask: "Ask about your portfolio or an investing term…",
+    research: `Type a ticker, like ${example}`,
+    sector: "Type a sector, like Semiconductors",
+    whatif: "Describe an event, like “What if Tesla cuts prices again?”",
+  }[mode];
+  const hint = {
+    ask: "A quick answer from your holdings and what Atlas remembers. It doesn't read the news; use Research for that.",
+    research: `Atlas reads filings, news and the web about a stock and gives a verdict. Type a ticker like ${example}.`,
+    sector: "Atlas checks what is happening in a sector and what it means for your stocks.",
+    whatif: "Describe an event and Atlas traces how it could reach your stocks.",
+  }[mode];
+
+  const claudeLink = mode === "research" || mode === "sector";
+
   return (
     <div className="mx-auto w-full max-w-3xl min-w-0">
-      {!text && (
-        <div className="mb-2.5 flex flex-wrap items-center justify-center gap-2" role="group" aria-label="Suggestions">
-          {mode === "whatif" || mode === "ask"
-            ? (mode === "ask" ? ASK_SUGGESTIONS : WHAT_IF_SUGGESTIONS.slice(0, 2)).map((s) => (
-                <button key={s} type="button" onClick={() => send(s, mode)} disabled={busy} className={CHIP}>
-                  {s}
-                </button>
-              ))
-            : (mode === "sector" ? SECTOR_SUGGESTIONS : tickers.length ? tickers : RESEARCH_SUGGESTIONS).map((s) => (
-                <button key={s} type="button" onClick={() => send(s, mode)} disabled={busy} className={CHIP}>
-                  Research {s}
-                </button>
-              ))}
-          <button
-            type="button"
-            onClick={onReview}
-            disabled={busy || !canReview}
-            title={canReview ? "Deep research on your 3 biggest holdings" : "Needs real holdings: connect a brokerage first"}
-            className={CHIP}
-          >
-            Review my portfolio
-          </button>
-          <button
-            type="button"
-            onClick={onScan}
-            disabled={busy}
-            title="Check your holdings and topics against your rules, the latest news, SEC filings and government notices"
-            className={CHIP}
-          >
-            Scan now
-          </button>
-        </div>
-      )}
-
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          send(text);
+          send();
         }}
         className="glass-strong rounded-[1.75rem] p-2 transition-colors focus-within:border-white/25"
       >
@@ -154,21 +109,13 @@ export default function Composer({
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
-              send(text);
+              send();
             }
           }}
           rows={1}
           maxLength={500}
-          placeholder={
-            mode === "research"
-              ? `Type a ticker, like ${tickers[0] ?? "AAPL"}`
-              : mode === "sector"
-                ? "Type a sector, like Semiconductors"
-                : mode === "ask"
-                  ? "Ask about your portfolio or an investing term…"
-                  : "Ask a what-if…"
-          }
-          aria-label={mode === "whatif" ? "Ask Atlas: describe a what-if scenario" : mode === "ask" ? "Ask Atlas a question" : "Ask Atlas: a ticker symbol to research"}
+          placeholder={placeholder}
+          aria-label="Message Atlas"
           aria-describedby="ask-atlas-hint"
           className="block max-h-52 w-full resize-none bg-transparent px-3 pt-2.5 pb-1.5 text-base leading-relaxed outline-none placeholder:text-muted-foreground focus-visible:outline-none"
         />
@@ -196,8 +143,8 @@ export default function Composer({
               </button>
             ))}
           </div>
-          {/* Always visible in research mode so the Claude hand-off is easy to find; it becomes a link once a ticker is typed. */}
-          {(mode === "research" || mode === "sector") &&
+          {/* Always visible in the research modes so the Claude hand-off is easy to find; it becomes a link once there is something to research. */}
+          {claudeLink &&
             (valid ? (
               <a
                 href={mode === "sector" ? claudeSectorLinkFor(text.trim()) : claudeLinkFor(ticker)}
@@ -222,10 +169,10 @@ export default function Composer({
           <button
             type="submit"
             disabled={busy || !valid}
-            aria-label={mode === "whatif" ? "Run what-if" : mode === "ask" ? "Ask" : mode === "sector" ? "Research sector" : "Research"}
+            aria-label={mode === "ask" ? "Ask" : mode === "whatif" ? "Run what-if" : mode === "sector" ? "Research sector" : "Research"}
             className={cn(
               "grid size-9 shrink-0 place-items-center rounded-full bg-white text-black transition hover:bg-white/85 active:translate-y-px disabled:bg-white/15 disabled:text-white/40",
-              mode === "whatif" || mode === "ask" ? "ml-auto" : "",
+              claudeLink ? "" : "ml-auto",
             )}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="size-[18px]">
@@ -235,14 +182,8 @@ export default function Composer({
           </button>
         </div>
       </form>
-      <p id="ask-atlas-hint" className="mt-2 px-3 text-center text-[11px] text-muted-foreground">
-        {mode === "whatif"
-          ? "Describe an event and Atlas traces how it could reach your stocks."
-          : mode === "ask"
-            ? "A quick answer from your portfolio and what Atlas remembers. It doesn't read the news; use Research for that."
-            : mode === "sector"
-            ? "Name a sector like semiconductors and Atlas checks what is happening in it and what it means for your stocks."
-            : `Type a ticker like ${tickers[0] ?? "AAPL"} and Atlas reads its SEC filings, news and government notices.`}
+      <p id="ask-atlas-hint" className="mt-2 hidden px-3 text-center text-[11px] text-muted-foreground sm:block">
+        {hint}
       </p>
     </div>
   );
