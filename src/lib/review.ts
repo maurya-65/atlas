@@ -49,7 +49,7 @@ export function researchOptions(r: ResearchResult, holding: Holding | undefined,
     options.push(
       claudeOption(
         { ticker: r.ticker, name: r.companyName, holding, portfolioTotal, quick: r },
-        "Go deeper in Claude (~10 min, free with Pro)",
+        "Go deeper in Claude",
       ),
     );
   }

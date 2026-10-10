@@ -68,7 +68,7 @@ export function claudeUrl(prompt: string) {
 }
 
 /** Link option for a card: open Claude Deep Research with the prompt filled in. */
-export function claudeOption(c: HandoffContext, label = `Deep research ${c.ticker.toUpperCase()} in Claude (~10 min, free with Pro)`) {
+export function claudeOption(c: HandoffContext, label = `Deep research ${c.ticker.toUpperCase()} in Claude`) {
   return { label, kind: "open_claude" as const, payload: { ticker: c.ticker.toUpperCase(), url: claudeUrl(buildClaudePrompt(c)) } };
 }
 

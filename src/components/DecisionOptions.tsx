@@ -73,7 +73,8 @@ export default function DecisionOptions({
               onClick={() => setOpenedClaude(true)}
               className={buttonClass("outline", "option")}
             >
-              {o.label} ↗
+              {/* Cards saved before the label was shortened still carry a bracketed note; leave it out. */}
+              {o.label.replace(/\s*\(.*\)\s*$/, "")} ↗
             </a>
           ) : (
             <button
