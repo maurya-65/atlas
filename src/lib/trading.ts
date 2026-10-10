@@ -14,6 +14,14 @@ function isToday(iso: string) {
   return new Date(iso).toDateString() === new Date().toDateString();
 }
 
+// One live order at a time, so two approvals at the same moment can't both fit under the same remaining allowance.
+let liveQueue: Promise<unknown> = Promise.resolve();
+function oneAtATime<T>(fn: () => Promise<T>): Promise<T> {
+  const run = liveQueue.then(fn);
+  liveQueue = run.catch(() => undefined);
+  return run;
+}
+
 export async function liveSpentToday(): Promise<number> {
   const s = await readStore();
   return s.trades.filter((t) => t.mode === "live" && t.status !== "rejected" && isToday(t.createdAt)).reduce((sum, t) => sum + t.dollars, 0);
@@ -30,7 +38,7 @@ export async function executeApprovedTrade(
   opts: { forcePaper?: boolean } = {},
 ): Promise<TradeRecord> {
   ticker = ticker.toUpperCase().trim();
-  if (!(dollars > 0)) throw new Error("Trade amount must be more than $0.");
+  if (!(dollars > 0) || !Number.isFinite(dollars)) throw new Error("Trade amount must be more than $0.");
   const s = await readStore();
   const price = await priceFor(ticker);
 
@@ -60,7 +68,8 @@ export async function executeApprovedTrade(
         st.paper.cash -= dollars;
       } else {
         if (pos.units * price < dollars - 0.01) throw new Error(`You only hold about $${(pos.units * price).toFixed(2)} of ${ticker} in paper mode.`);
-        pos.units -= units;
+        // Selling the whole position can overshoot by a rounding hair; never leave a negative holding.
+        pos.units = Math.max(0, pos.units - units);
         st.paper.cash += dollars;
       }
       pos.lastPrice = price;
@@ -71,6 +80,11 @@ export async function executeApprovedTrade(
   }
 
   // Live mode: real money through the user's own brokerage.
+  return oneAtATime(() => placeLiveTrade(ticker, side, dollars, price));
+}
+
+async function placeLiveTrade(ticker: string, side: "BUY" | "SELL", dollars: number, price: number | null): Promise<TradeRecord> {
+  if (process.env.VERCEL) throw new Error("Live mode only works when Atlas runs on your own computer.");
   if (dollars > LIVE_LIMITS.perTrade) {
     throw new Error(`Live trades are capped at $${LIVE_LIMITS.perTrade} each. Try $${LIVE_LIMITS.perTrade} or less.`);
   }
