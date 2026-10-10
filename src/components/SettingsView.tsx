@@ -1,17 +1,12 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
+import { useExtensionReady } from "./ClaudeSetupView";
 import { timeAgo } from "./format";
 import { ResetIcon } from "./icons";
 import ModeControl from "./ModeControl";
 import type { ViewProps } from "./Sections";
 import { Badge, Button, Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle, Select, Textarea, buttonClass } from "./ui";
-
-function subscribeExtension(cb: () => void) {
-  const obs = new MutationObserver(cb);
-  obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-atlas-extension"] });
-  return () => obs.disconnect();
-}
 
 function AccountCard({ state, onSelectAccount }: Pick<ViewProps, "state" | "onSelectAccount">) {
   const selected = state.accounts.find((a) => a.id === state.selectedAccountId) ?? state.accounts[0];
@@ -160,11 +155,7 @@ function ImportCard({ onImport, busy }: Pick<ViewProps, "onImport" | "busy">) {
 }
 
 function ClaudeCard() {
-  const extensionReady = useSyncExternalStore(
-    subscribeExtension,
-    () => document.documentElement.dataset.atlasExtension === "ready",
-    () => false,
-  );
+  const extensionReady = useExtensionReady();
   return (
     <Card>
       <CardHeader>
@@ -183,7 +174,13 @@ function ClaudeCard() {
             ? "The Atlas Chrome extension is active in this tab. The button opens Claude with Research mode on and the prompt filled in; you press send and the card arrives in your Inbox by itself."
             : "Without the Atlas Chrome extension, the button opens claude.ai with the prompt filled in. You turn on Research, press send, and paste the answer into the box on this page."}
         </p>
-        <p>You can also add Atlas to the Claude app, so Claude can use your portfolio and rules. The steps are in the project’s README.</p>
+        <p>
+          Install steps and the download links are on the{" "}
+          <a href="#claude" className="font-medium text-foreground underline decoration-white/25 underline-offset-4 hover:decoration-white">
+            Claude setup page
+          </a>
+          . You can also add Atlas to the Claude app, so Claude can use your portfolio and rules; those steps are in the project’s README.
+        </p>
       </CardContent>
     </Card>
   );

@@ -90,13 +90,13 @@ Cards Claude creates are marked "From Claude" in the app.
 
 ## Chrome extension
 
-*Deep research in Claude* opens claude.ai with a prompt filled in; you paste the answer back under Settings and Atlas turns it into a card without an API call. The extension in `extension/` skips the copy and paste. Research mode needs a paid Claude plan (Pro or higher); the free plan does not have it. First-time setup steps are in [extension/README.md](extension/README.md).
+*Deep research in Claude* opens claude.ai with a prompt filled in; you paste the answer back under Settings and Atlas turns it into a card without an API call. The extension in `extension/` skips the copy and paste. Research mode needs a paid Claude plan (Pro or higher); the free plan does not have it. It works with Atlas on your computer or a hosted copy (add the hosted address once in the extension). The **Claude setup** tab in Atlas has the download links and the install steps (the same steps are in [extension/README.md](extension/README.md)).
 
 ## Claude skill
 
 `claude-skill/atlas-stock-research/` is a Claude skill for the Deep Research hand-off. It carries the method (five analyst passes, a debate, a judge with a confidence rubric), the checklists each pass works from, a fixed report format, and a script that checks the `ATLAS_RESULT` block the way Atlas parses it.
 
-To install it, zip the folder so that `atlas-stock-research/` is at the top of the zip, then upload it in Claude under Settings → Customize → Skills. Code execution has to be on. Anthropic's docs don't say whether Research mode loads skills, so the prompt Atlas sends also names the skill and carries the report outline, and it works without the skill installed.
+To install it, download the zip from the **Claude setup** tab (or zip the folder yourself so that `atlas-stock-research/` is at the top), then upload it in Claude under Settings → Customize → Skills. Code execution has to be on. Anthropic's docs don't say whether Research mode loads skills, so the prompt Atlas sends also names the skill and carries the report outline, and it works without the skill installed.
 
 ## Deploy to Vercel
 

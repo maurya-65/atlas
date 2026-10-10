@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
-import { CalendarIcon, DashboardIcon, GlobeIcon, InboxIcon, MessageIcon, PlugIcon, ShieldIcon, XIcon } from "./icons";
+import { CalendarIcon, DashboardIcon, GlobeIcon, InboxIcon, ListChecksIcon, MessageIcon, PlugIcon, ShieldIcon, XIcon } from "./icons";
 import { Button, cn } from "./ui";
 import { VIEWS, viewHref, type View } from "./views";
 
@@ -11,6 +11,7 @@ const ICONS: Record<View, ReactNode> = {
   overview: <DashboardIcon />,
   daily: <CalendarIcon />,
   rules: <ShieldIcon />,
+  claude: <ListChecksIcon />,
   settings: <PlugIcon />,
 };
 

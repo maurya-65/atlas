@@ -1,5 +1,5 @@
 /** The sections of the single Atlas page. The URL hash picks one (for example /#inbox); a chat is /#chat/<id>. */
-export type View = "chat" | "inbox" | "overview" | "daily" | "rules" | "settings";
+export type View = "chat" | "inbox" | "overview" | "daily" | "rules" | "claude" | "settings";
 
 /** In sidebar order. The landing view is a new chat (see viewFromHash). */
 export const VIEWS: { id: View; label: string; title: string; description: string; group: "agent" | "setup" }[] = [
@@ -36,6 +36,13 @@ export const VIEWS: { id: View; label: string; title: string; description: strin
     label: "Rules & topics",
     title: "Rules & topics",
     description: "What Atlas watches for, and the limits it can never cross.",
+    group: "setup",
+  },
+  {
+    id: "claude",
+    label: "Claude setup",
+    title: "Claude setup",
+    description: "Add the Chrome extension so Deep Research in Claude comes back here by itself.",
     group: "setup",
   },
   {

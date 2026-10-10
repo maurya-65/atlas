@@ -12,6 +12,7 @@ import { MessageView, Thinking } from "@/components/Messages";
 import AgentRoom from "@/components/AgentRoom";
 import { DailyView, OverviewView, type ViewProps } from "@/components/Sections";
 import RulesView from "@/components/RulesView";
+import ClaudeSetupView from "@/components/ClaudeSetupView";
 import SettingsView from "@/components/SettingsView";
 import { api, streamApi, type AppState } from "@/components/format";
 import { Button } from "@/components/ui";
@@ -471,6 +472,7 @@ export default function Home() {
               {view === "overview" && <OverviewView {...viewProps} />}
               {view === "daily" && <DailyView {...viewProps} />}
               {view === "rules" && <RulesView {...viewProps} />}
+              {view === "claude" && <ClaudeSetupView />}
               {view === "settings" && <SettingsView {...viewProps} />}
             </div>
           </main>
