@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CHAT_MODEL, structured } from "./llm";
+import { claudeOption } from "./handoff";
 import { activePortfolio } from "./portfolio";
 import { ruleStatus } from "./rules";
 import { addMessages, newMessage, readStore, updateStore } from "./store";
@@ -46,8 +47,9 @@ function lineOf(m: ChatMessage): string | null {
 }
 
 /**
- * The button under an answer that needs more than a chat reply: research on one stock, or a what-if. These
- * take a minute or two, so the user starts them with a click. Anything the model suggests that isn't valid is dropped.
+ * The buttons under an answer that needs more than a chat reply: research on one stock, or a what-if. These
+ * take a minute or two, so the user starts them with a click. A stock can also be researched in Claude, which
+ * runs on the user's Claude plan instead of Atlas's API key. Anything the model suggests that isn't valid is dropped.
  */
 function nextStep(next: z.infer<typeof Answer>["next"] | undefined, p: Portfolio): CardOption[] {
   if (!next) return [];
@@ -56,7 +58,10 @@ function nextStep(next: z.infer<typeof Answer>["next"] | undefined, p: Portfolio
     const ticker = value.toUpperCase();
     const held = p.holdings.find((h) => h.ticker === ticker);
     if (!/^[A-Z.\-]{1,10}$/.test(ticker) || !isResearchableStock(ticker, held?.kind)) return [];
-    return [{ label: `Research ${ticker}`, kind: "research", recommended: true, payload: { ticker } }];
+    return [
+      { label: `Research ${ticker}`, kind: "research", recommended: true, payload: { ticker } },
+      claudeOption({ ticker, name: held?.name, holding: held, portfolioTotal: p.total }),
+    ];
   }
   if (value.length < 3 || value.length > 500) return [];
   const short = value.length > 60 ? `${value.slice(0, 59).trimEnd()}…` : value;

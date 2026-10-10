@@ -53,9 +53,11 @@ test("an answer that needs research or a what-if comes with a button for it", as
     await say(A, "a question");
     return (await answer(A)).options;
   };
-  assert.deepEqual(await asked({ kind: "research", value: "tsla" }), [
-    { label: "Research TSLA", kind: "research", recommended: true, payload: { ticker: "TSLA" } },
-  ]);
+  const research = (await asked({ kind: "research", value: "tsla" }))!;
+  assert.deepEqual(research[0], { label: "Research TSLA", kind: "research", recommended: true, payload: { ticker: "TSLA" } });
+  // The same research can run in Claude, on the user's own plan.
+  assert.deepEqual([research[1].kind, research[1].label, research[1].payload?.ticker], ["open_claude", "Deep research TSLA in Claude", "TSLA"]);
+  assert.match(research[1].payload!.url!, /^https:\/\/claude\.ai\/new\?q=/);
   const oil = "What if oil prices double next year?";
   assert.deepEqual(await asked({ kind: "what_if", value: oil }), [
     { label: `Run a what-if: ${oil}`, kind: "what_if", recommended: true, payload: { scenario: oil } },
