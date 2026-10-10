@@ -15,9 +15,9 @@ import {
 } from "./sources";
 import type { AgentStep, GraphEdge, GraphNode, Holding, ResearchAngle, ResearchEvent, ResearchResult, Stance } from "./types";
 
-// Deep research: eight analyst agents. Six start from the public sources Atlas collects for one angle (SEC
+// Deep research: nine analyst agents. Six start from the public sources Atlas collects for one angle (SEC
 // filings, news feeds, Federal Register), search the web to read past the titles, and write a short cited
-// report. Two are open: they get no source list and decide for themselves what to search each time. Then
+// report. Three are open: they get no source list and decide for themselves what to search each time. Then
 // each reads the others' reports and argues back (one debate round). A judge weighs the debate into a verdict with a 0-100 confidence
 // score. Every call is Opus at high effort; revenue growth and position size are computed in code, never
 // by the model.
@@ -25,9 +25,9 @@ import type { AgentStep, GraphEdge, GraphNode, Holding, ResearchAngle, ResearchE
 const EFFORT = "high" as const;
 const PER_ANGLE = 10;
 const MAX_SOURCES = 90;
-// Eight analysts search in parallel, so each gets fewer searches than a team of four would (the pages they read are most of the cost).
+// Nine analysts search in parallel, so each gets fewer searches than a team of four would (the pages they read are most of the cost).
 const SEARCHES_PER_ANALYST = 3;
-// The two open analysts have no source list to lean on, so they get more searches.
+// The open analysts have no source list to lean on, so they get more searches.
 const SEARCHES_PER_OPEN_ANALYST = 5;
 /** Pages from its own searches each analyst may cite */
 const WEB_PER_ANALYST = 8;
@@ -60,6 +60,8 @@ interface AngleDef {
   fetch: (c: Company) => Promise<SourceItem[]>;
   /** No fixed sources: the analyst plans its own web searches */
   open?: boolean;
+  /** Overrides the default search budget */
+  searches?: number;
 }
 
 const news = (q: string, c: Company, n: number) => googleNews(q, c.ticker, n).catch(() => [] as SourceItem[]);
@@ -145,6 +147,14 @@ const ANGLES: AngleDef[] = [
     open: true,
     focus:
       "The strongest honest case against owning this stock: red flags, hidden risks, contradicting reports, short-seller or critic claims, and reasons the consensus could be wrong. Find evidence the other analysts are unlikely to look for.",
+    fetch: async () => [],
+  },
+  {
+    name: "Niche news",
+    open: true,
+    searches: 6,
+    focus:
+      "What sits below the headlines: trade and industry publications, supplier, customer and local news, court dockets, patents, job postings, conference transcripts, niche newsletters and forums. Go back months or years when older background explains what is happening now; do not stop at the latest news.",
     fetch: async () => [],
   },
 ];
@@ -365,10 +375,10 @@ export async function researchTicker(ticker: string, ctx: ResearchContext): Prom
         const { output, pages, searches } = await structuredWithSearch({
           system: a.open
             ? `You are the "${a.name}" analyst on a research team. Your angle: ${a.focus} ` +
-              `You get no source list: you find your own. Search the web, up to ${SEARCHES_PER_OPEN_ANALYST} times. Before each search, think about what is still ` +
+              `You get no source list: you find your own. Search the web, up to ${a.searches ?? SEARCHES_PER_OPEN_ANALYST} times. Before each search, think about what is still ` +
               "unknown and what would move this stock right now, using the company, its industry, the user's position and interests. Use specific queries " +
               "(names, events, dates, rivals, regulators), not just the ticker. Follow up a lead with a sharper query instead of repeating one, and ignore stale " +
-              "or off-topic pages. Prefer first-hand pages from the last 30 days: company releases, filings, regulators, established news. " +
+              "or off-topic pages. Prefer first-hand pages (company releases, filings, regulators, established news, trade press) and favour recent ones unless your angle needs older background. " +
               "Base every claim on pages your searches returned, never on memory. List the pages you rely on in webSources and cite them as [W1], [W2] by " +
               `their position in that list. If you find nothing solid, say so and pick not_enough_info with a low score. ${PLAIN}`
             : `You are the "${a.name}" analyst on a research team. Your angle: ${a.focus} ` +
@@ -381,7 +391,7 @@ export async function researchTicker(ticker: string, ctx: ResearchContext): Prom
             ? `${header}\n\nYou have no numbered sources. Search for your angle yourself, then write your short report, key points, stance and confidence score.`
             : `${header}\n\nYour sources:\n${numbered(src) || "(none found)"}\n\nResearch your angle, then write your short report, key points, stance and confidence score.`,
           schema: AnalystSchema,
-          maxSearches: a.open ? SEARCHES_PER_OPEN_ANALYST : SEARCHES_PER_ANALYST,
+          maxSearches: a.searches ?? (a.open ? SEARCHES_PER_OPEN_ANALYST : SEARCHES_PER_ANALYST),
           maxTokens: 24000,
           effort: EFFORT,
         });

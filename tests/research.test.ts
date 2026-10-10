@@ -76,15 +76,15 @@ beforeEach(() => {
   });
 });
 
-test("eight analysts search, debate once, and a judge gives one verdict", async () => {
+test("nine analysts search, debate once, and a judge gives one verdict", async () => {
   const r = await researchTicker("acme", { interests: [] });
   assert.equal(r.stance, "consider_buying");
   assert.equal(r.confidenceScore, 100, "a score outside 0-100 is clamped");
-  assert.equal(r.angles?.length, 8);
-  assert.equal(calls.length, 17);
-  assert.equal(calls.filter((c) => c.searched).length, 8, "only the analysts search the web");
-  assert.equal(calls.filter((c) => c.searched && c.system.includes("no source list")).length, 2, "two analysts plan their own searches; the other six start from the collected sources");
-  assert.ok(calls[16].system.includes("You are the judge"));
+  assert.equal(r.angles?.length, 9);
+  assert.equal(calls.length, 19);
+  assert.equal(calls.filter((c) => c.searched).length, 9, "only the analysts search the web");
+  assert.equal(calls.filter((c) => c.searched && c.system.includes("no source list")).length, 3, "three analysts plan their own searches; the other six start from the collected sources");
+  assert.ok(calls[18].system.includes("You are the judge"));
 });
 
 test("every citation in the card points at a real source", async () => {
@@ -98,7 +98,7 @@ test("every citation in the card points at a real source", async () => {
 
 test("a page an analyst found joins the source list once; a made-up link never does", async () => {
   const r = await researchTicker("ACME", { interests: [] });
-  assert.equal(r.sources.filter((s) => s.url === REAL.url).length, 1, "eight analysts citing the same page add it once");
+  assert.equal(r.sources.filter((s) => s.url === REAL.url).length, 1, "nine analysts citing the same page add it once");
   assert.equal(r.sources.some((s) => s.url.includes("made-up.example")), false);
 
   const n = r.sources.findIndex((s) => s.url === REAL.url) + 1;

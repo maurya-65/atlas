@@ -131,7 +131,7 @@ export async function startReview(opts: { origin?: string; threadId?: string } =
       threadId: opts.threadId,
       text:
         `Reviewing your ${picks.length} biggest holdings: ${picks.map((h) => `**${h.ticker}** (${((h.value / total) * 100).toFixed(0)}%)`).join(", ")}. ` +
-        "For each one, eight analyst agents research a different angle, debate each other, and a judge gives a verdict with a confidence score. Cards appear as each finishes.",
+        "For each one, nine analyst agents research a different angle, debate each other, and a judge gives a verdict with a confidence score. Cards appear as each finishes.",
     }),
   );
   return { picks: picks.map((h) => h.ticker), posted };

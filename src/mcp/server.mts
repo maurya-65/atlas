@@ -113,7 +113,7 @@ server.registerTool(
   {
     title: "Deep research on a company",
     description:
-      "Deep research on one stock from public sources (SEC filings, quarterly revenue, news, Federal Register). Eight analyst agents each research one angle: six work from the collected sources (business & market, financial health, valuation & expectations, industry & competition, regulation & legal, people & operations) and two search the news on their own (a news scout and a skeptic). They search the web for more, and write a short cited report, then debate each other; a judge gives the verdict (buy more / sell some / hold), a 0-100 confidence score with its reason, and points for and against. Citations [n] refer to sources[n-1]. The full card with buy/sell buttons is posted to the Atlas app. Takes a few minutes.",
+      "Deep research on one stock from public sources (SEC filings, quarterly revenue, news, Federal Register). Nine analyst agents each research one angle: six work from the collected sources (business & market, financial health, valuation & expectations, industry & competition, regulation & legal, people & operations) and three search on their own (a news scout, a skeptic and a niche-news digger who goes below the headlines and back in time). They search the web for more, and write a short cited report, then debate each other; a judge gives the verdict (buy more / sell some / hold), a 0-100 confidence score with its reason, and points for and against. Citations [n] refer to sources[n-1]. The full card with buy/sell buttons is posted to the Atlas app. Takes a few minutes.",
     inputSchema: { ticker: z.string().min(1).max(10) },
   },
   async ({ ticker }) =>
@@ -144,7 +144,7 @@ server.registerTool(
   {
     title: "Deep-review the biggest holdings",
     description:
-      "Run deep research (8 analyst agents, a debate round and a judge) on each of the user's 3 biggest holdings, one after another, and post a card per stock to the Atlas app. Returns each verdict (buy more / sell some / hold) with its 0-100 confidence score. Slow: several minutes.",
+      "Run deep research (9 analyst agents, a debate round and a judge) on each of the user's 3 biggest holdings, one after another, and post a card per stock to the Atlas app. Returns each verdict (buy more / sell some / hold) with its 0-100 confidence score. Slow: several minutes.",
     inputSchema: {},
   },
   async () =>
