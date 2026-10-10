@@ -9,6 +9,8 @@ export interface Holding {
   avgCost: number | null;
   /** Change from average purchase price, e.g. -0.12 = down 12% */
   pnlPct: number | null;
+  /** What the broker says this is ("stock", "adr", "etf", "mutualfund", "crypto", …), when it says */
+  kind?: string | null;
 }
 
 export interface Portfolio {
@@ -178,7 +180,7 @@ export interface ResearchEvent {
 
 export interface PaperBook {
   cash: number;
-  positions: Record<string, { units: number; avgCost: number; name: string; lastPrice: number }>;
+  positions: Record<string, { units: number; avgCost: number; name: string; lastPrice: number; kind?: string | null }>;
   seededFrom: "snaptrade" | "demo";
   seededAt: string;
 }
@@ -216,6 +218,8 @@ export interface DailySchedule {
   enabled: boolean;
   /** Local time of day, "HH:MM" (24h) */
   time: string;
+  /** The time zone `time` is in, e.g. "America/Halifax": the browser's, saved with the schedule. Unset = the server's own zone. */
+  timeZone?: string | null;
   /** How many stocks to deep-research per run (0-3). 0 = brief only. */
   depth: number;
   lastRunAt: string | null;
@@ -238,6 +242,8 @@ export interface DailyState {
   /** ISO time of the next scheduled run, or null when off */
   nextRunAt: string | null;
   running: boolean;
+  /** True on a host (Vercel) whose own once-a-day timer starts the run, instead of a clock inside Atlas */
+  hostTimer?: boolean;
   /** The current watch list, in the order the daily run will research it */
   watch: { ticker: string; name: string; weight: number; lastResearchedAt: string | null }[];
 }
@@ -318,6 +324,8 @@ export interface ScenarioResult {
   nodes: GraphNode[];
   edges: GraphEdge[];
   sources: SourceRef[];
+  /** True when a [n] in the text means sources[n - 1]. Results saved before this carry numbers that match nothing. */
+  numbered?: boolean;
   agents: ScenarioAgentStep[];
   generatedAt: string;
 }
@@ -326,8 +334,20 @@ export interface ScenarioResult {
 const NON_STOCK = new Set(["BTC", "ETH", "SOL", "USDC", "USDT", "DAI", "XRP", "ADA", "DOGE", "LTC", "BNB", "AVAX", "DOT", "MATIC", "LINK", "SHIB", "BCH", "XLM"]);
 /** SPY and similar index funds have no company filings of their own either. */
 const FUNDS = new Set(["SPY", "VOO", "IVV", "QQQ", "VTI", "DIA", "IWM"]);
-/** True for ordinary company stocks (the only holdings the filings-based research can handle). */
-export function isResearchableStock(ticker: string): boolean {
+/** US mutual fund symbols are five letters ending in X (FXAIX, VFIAX). */
+const MUTUAL_FUND = /^[A-Z]{4}X$/;
+/** True for a fund, which already holds many companies (index fund, ETF, mutual fund). */
+export function isFund(ticker: string, kind?: string | null): boolean {
+  if (kind) return kind === "etf" || kind === "mutualfund" || kind === "cef";
   const t = ticker.toUpperCase();
-  return !NON_STOCK.has(t) && !FUNDS.has(t);
+  return FUNDS.has(t) || MUTUAL_FUND.test(t);
+}
+/**
+ * True for ordinary company stocks, the only holdings the filings-based research can handle.
+ * The broker's own label decides when there is one; otherwise the symbol is checked against known funds and crypto.
+ */
+export function isResearchableStock(ticker: string, kind?: string | null): boolean {
+  if (kind) return kind === "stock" || kind === "adr";
+  const t = ticker.toUpperCase();
+  return !NON_STOCK.has(t) && !FUNDS.has(t) && !MUTUAL_FUND.test(t);
 }

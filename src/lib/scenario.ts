@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { structured } from "./llm";
 import { dedupe, federalRegister, googleNews, secFilings, shortName, type SourceItem } from "./sources";
+import { isResearchableStock } from "./types";
 import type {
   CardOption,
   GraphEdge,
@@ -226,6 +227,22 @@ export async function runScenario(
   log({ role: "synthesizer", task: "Mapped the findings onto your holdings and estimated rough ranges", sourcesRead: all.length });
 
   // ---- 4. Code: numbers, graph validation, sources, options ----
+
+  // The synthesizer cites the full numbered list. The card lists only the sources it used, so each [n] is
+  // rewritten to that source's place in the card's list; a number that points at nothing is dropped.
+  const written = synth
+    ? [synth.headline, synth.recommendation, synth.confidenceReason, ...synth.holdings.map((x) => x.why), ...synth.channels.flatMap((c) => [c.mechanism, ...c.findings])]
+    : [];
+  const used = new Set(
+    [...written.flatMap((t) => [...t.matchAll(/\[(\d+)\]/g)].map((x) => Number(x[1]))), ...(synth?.citedSources ?? [])].filter(
+      (n) => Number.isInteger(n) && n >= 1 && n <= all.length,
+    ),
+  );
+  const cited = all.filter((_, i) => used.has(i + 1));
+  const place = new Map(all.flatMap((s, i) => (used.has(i + 1) ? [[i + 1, cited.indexOf(s) + 1] as const] : [])));
+  const cite = (t: string) => t.replace(/\s?\[(\d+)\]/g, (m, n) => (place.has(Number(n)) ? m.replace(/\d+/, String(place.get(Number(n)))) : "")).trim();
+  const noCites = (t: string) => t.replace(/\s?\[\d+\]/g, "").trim();
+
   const byTicker = new Map((synth?.holdings ?? []).map((h) => [h.ticker.toUpperCase(), h]));
   const impacts: ScenarioHoldingImpact[] = holdings.map((h) => {
     const s = byTicker.get(h.ticker);
@@ -244,8 +261,8 @@ export async function runScenario(
       moveHighPct: hi,
       dollarsLow: h.value * lo,
       dollarsHigh: h.value * hi,
-      path: (s?.path ?? []).slice(0, 5),
-      why: s?.why ?? "I couldn't find a clear link between this scenario and this company.",
+      path: (s?.path ?? []).slice(0, 5).map(noCites),
+      why: s ? cite(s.why) : "I couldn't find a clear link between this scenario and this company.",
     };
   });
   const rank = { high: 3, medium: 2, low: 1, none: 0 } as const;
@@ -263,17 +280,20 @@ export async function runScenario(
 
   const { nodes, edges } = validateGraph(scenario, synth?.nodes ?? [], synth?.edges ?? [], impacts, channels.map((c) => c.name));
 
-  const cited = new Set((synth?.citedSources ?? []).filter((n) => n >= 1 && n <= all.length));
-  const orderedSources = [...all.filter((_, i) => cited.has(i + 1)), ...all.filter((_, i) => !cited.has(i + 1))].slice(0, 20);
+  // Cited sources first (every one of them), then others worth a look, up to 20 in all.
+  const orderedSources = [...cited, ...all.filter((_, i) => !used.has(i + 1))].slice(0, Math.max(20, cited.length));
   const sources: SourceRef[] = orderedSources.map((s) => ({ title: s.title, url: s.url, publisher: s.publisher, date: s.date }));
 
   const channelsOut: ScenarioChannel[] =
     synth?.channels?.length
-      ? synth.channels.slice(0, 5).map((c) => ({ name: c.name, mechanism: c.mechanism, findings: c.findings.slice(0, 4) }))
+      ? synth.channels.slice(0, 5).map((c) => ({ name: c.name, mechanism: cite(c.mechanism), findings: c.findings.slice(0, 4).map(cite) }))
       : channelResults.map((r) => ({ name: r.channel.name, mechanism: r.channel.mechanism, findings: r.findings.map((f) => f.text) }));
 
   const options: CardOption[] = [];
-  const mostExposed = impacts.find((x) => x.exposure !== "none");
+  const kindOf = new Map(ctx.portfolio.holdings.map((x) => [x.ticker, x.kind]));
+  // Deeper research is only worth suggesting for a holding the scenario really reaches. When every link is
+  // faint, the card recommends watching the topic instead.
+  const mostExposed = impacts.find((x) => (x.exposure === "high" || x.exposure === "medium") && isResearchableStock(x.ticker, kindOf.get(x.ticker)));
   const mostHurt = impacts.find((x) => (x.direction === "hurt" || x.direction === "mixed") && x.exposure !== "none" && x.exposure !== "low");
   if (mostExposed) options.push({ label: `Research ${mostExposed.ticker} deeper`, kind: "research", recommended: true, payload: { ticker: mostExposed.ticker } });
   if (mostHurt && heldSet.has(mostHurt.ticker)) {
@@ -286,21 +306,21 @@ export async function runScenario(
   return {
     scenario,
     headline:
-      synth?.headline ??
+      (synth ? cite(synth.headline) : null) ??
       (noHoldings
         ? "You don't hold any stocks yet, so this shows which kinds of companies would be affected."
         : "I gathered public sources but couldn't finish the analysis. Here's what I found."),
     holdings: impacts,
     portfolioImpact,
     channels: channelsOut,
-    recommendation:
-      synth?.recommendation ?? "Not enough to act on. I'd keep watching this topic rather than trade on it.",
+    recommendation: synth ? cite(synth.recommendation) : "Not enough to act on. I'd keep watching this topic rather than trade on it.",
     confidence: synth?.confidence ?? "low",
-    confidenceReason: synth?.confidenceReason ?? "The analysis step didn't complete, so this is based on raw headlines only.",
+    confidenceReason: synth ? cite(synth.confidenceReason) : "The analysis step didn't complete, so this is based on raw headlines only.",
     options,
     nodes,
     edges,
     sources,
+    numbered: true,
     agents,
     generatedAt: new Date().toISOString(),
   };

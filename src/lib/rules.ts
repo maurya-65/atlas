@@ -1,5 +1,5 @@
 import { newMessage } from "./store";
-import type { ChatMessage, Portfolio, Rule } from "./types";
+import { isFund, isResearchableStock, type CardOption, type ChatMessage, type Holding, type Portfolio, type Rule } from "./types";
 
 // Rule checks are plain arithmetic, so they run in code, not through a model.
 
@@ -13,6 +13,12 @@ export interface RuleHit {
   message: ChatMessage;
 }
 
+/** "Research X" only for company stocks; funds and crypto have no filings for the analysts to read. */
+function researchOption(h: Holding, recommended: boolean): CardOption[] {
+  if (!isResearchableStock(h.ticker, h.kind)) return [];
+  return [{ label: `Research ${h.ticker}`, kind: "research", recommended: recommended || undefined, payload: { ticker: h.ticker } }];
+}
+
 export function evaluateRules(p: Portfolio, rules: Rule[]): RuleHit[] {
   const hits: RuleHit[] = [];
   const total = p.total || 1;
@@ -22,6 +28,8 @@ export function evaluateRules(p: Portfolio, rules: Rule[]): RuleHit[] {
     switch (rule.kind) {
       case "concentration":
         for (const h of p.holdings) {
+          // The rule is about one company being too much of the portfolio. A fund already holds many.
+          if (isFund(h.ticker, h.kind)) continue;
           const share = h.value / total;
           if (share > t) {
             const trimTo = t * total;
@@ -35,16 +43,18 @@ export function evaluateRules(p: Portfolio, rules: Rule[]): RuleHit[] {
                 recommendation:
                   rule.action === "propose"
                     ? `Sell a small amount of ${h.ticker} to move back toward your limit. I'd start with $25 rather than the full ${usd(excess)}.`
-                    : `No rush. I'd research ${h.ticker} first to see whether anything recent explains the run-up before deciding to trim.`,
+                    : isResearchableStock(h.ticker, h.kind)
+                      ? `No rush. I'd research ${h.ticker} first to see whether anything recent explains the run-up before deciding to trim.`
+                      : `No rush. Nothing has to happen today; trimming a little at a time is one way to move back toward your limit.`,
                 options:
                   rule.action === "propose"
                     ? [
                         { label: `Sell $25 of ${h.ticker}`, kind: "approve_trade", recommended: true, payload: { ticker: h.ticker, side: "SELL", dollars: 25 } },
-                        { label: `Research ${h.ticker} first`, kind: "research", payload: { ticker: h.ticker } },
+                        ...researchOption(h, false),
                         { label: "Leave it", kind: "dismiss" },
                       ]
                     : [
-                        { label: `Research ${h.ticker}`, kind: "research", recommended: true, payload: { ticker: h.ticker } },
+                        ...researchOption(h, true),
                         { label: `Sell $25 of ${h.ticker}`, kind: "approve_trade", payload: { ticker: h.ticker, side: "SELL", dollars: 25 } },
                         { label: "Leave it", kind: "dismiss" },
                       ],
@@ -63,9 +73,11 @@ export function evaluateRules(p: Portfolio, rules: Rule[]): RuleHit[] {
                 text:
                   `You paid about ${usd(h.avgCost!)} per share and it's now ${usd(h.price)}. Your rule flags drops of ${rule.threshold}% or more.\n\n` +
                   `A drop alone doesn't mean "sell". What matters is why it dropped: a temporary scare, or something that changes the business.`,
-                recommendation: `Let me research ${h.ticker} so you can see what's behind the drop before deciding anything.`,
+                recommendation: isResearchableStock(h.ticker, h.kind)
+                  ? `Let me research ${h.ticker} so you can see what's behind the drop before deciding anything.`
+                  : `Find out what moved ${h.ticker} before deciding anything. A drop by itself is not a reason to sell.`,
                 options: [
-                  { label: `Research ${h.ticker}`, kind: "research", recommended: true, payload: { ticker: h.ticker } },
+                  ...researchOption(h, true),
                   ...(rule.action === "propose"
                     ? [{ label: `Sell $25 of ${h.ticker}`, kind: "approve_trade" as const, payload: { ticker: h.ticker, side: "SELL" as const, dollars: 25 } }]
                     : []),
@@ -101,9 +113,11 @@ export function evaluateRules(p: Portfolio, rules: Rule[]): RuleHit[] {
             hit(rule, `px:${rule.id}:${word}`, {
               title: `${h.ticker} is ${word} ${usd(rule.threshold)}`,
               text: `You asked me to watch for ${h.ticker} going ${word} ${usd(rule.threshold)}. It's at ${usd(h.price)} now.`,
-              recommendation: `Research before acting, so the decision is based on why the price moved.`,
+              recommendation: isResearchableStock(h.ticker, h.kind)
+                ? `Research before acting, so the decision is based on why the price moved.`
+                : `Find out why the price moved before acting.`,
               options: [
-                { label: `Research ${h.ticker}`, kind: "research", recommended: true, payload: { ticker: h.ticker } },
+                ...researchOption(h, true),
                 {
                   label: `${rule.kind === "price_below" ? "Buy" : "Sell"} $25 of ${h.ticker}`,
                   kind: "approve_trade",

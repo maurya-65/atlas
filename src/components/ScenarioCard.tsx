@@ -5,6 +5,7 @@ import DecisionOptions from "./DecisionOptions";
 import Graph from "./Graph";
 import { clockTime, money } from "./format";
 import Sources from "./Sources";
+import Cited from "./Cited";
 import { FeedItem, OriginTag } from "./ui";
 
 const EXPOSURE: Record<ScenarioHoldingImpact["exposure"], string> = {
@@ -83,6 +84,8 @@ export default function ScenarioCard({
   onChoose: (messageId: string, optionIndex: number) => Promise<void>;
   disabled: boolean;
 }) {
+  // Text with [n] citations: links on cards whose numbers match their source list, plain text on older cards.
+  const cited = (text: string) => (s.numbered ? <Cited text={text} sources={s.sources} /> : text.replace(/\s?\[\d+\]/g, ""));
   const impact = impactSentence(s);
   const exposed = [...s.holdings].sort((a, b) => Math.min(a.dollarsLow, a.dollarsHigh) - Math.min(b.dollarsLow, b.dollarsHigh));
   const steps = trace(s);
@@ -94,7 +97,7 @@ export default function ScenarioCard({
       tag={<OriginTag origin={m.origin} />}
       time={<time dateTime={m.createdAt}>{clockTime(m.createdAt)}</time>}
       title={<>“{s.scenario}”</>}
-      summary={s.headline || undefined}
+      summary={s.headline ? cited(s.headline) : undefined}
       details={
         <>
           <p className="text-xs text-muted-foreground">
@@ -103,9 +106,9 @@ export default function ScenarioCard({
 
           <div>
             <span className="font-semibold">Recommendation: </span>
-            {s.recommendation}
+            {cited(s.recommendation)}
             <div className="mt-1 text-muted-foreground">
-              <span className="font-medium text-foreground capitalize">Confidence: {s.confidence}.</span> {s.confidenceReason}
+              <span className="font-medium text-foreground capitalize">Confidence: {s.confidence}.</span> {cited(s.confidenceReason)}
             </div>
           </div>
 
@@ -134,8 +137,8 @@ export default function ScenarioCard({
                       <span className={PILL}>{DIRECTION[h.direction] ?? h.direction}</span>
                       <span className={`${PILL} tabular-nums`}>price {range(h.moveLowPct, h.moveHighPct, signedPct)}</span>
                     </div>
-                    {h.path.length > 0 && <p className="mt-1.5 text-xs font-medium">{h.path.join(" → ")}</p>}
-                    {h.why && <p className="mt-0.5 text-xs text-muted-foreground">{h.why}</p>}
+                    {h.path.length > 0 && <p className="mt-1.5 text-xs font-medium">{h.path.map((step) => step.replace(/\s?\[\d+\]/g, "")).join(" → ")}</p>}
+                    {h.why && <p className="mt-0.5 text-xs text-muted-foreground">{cited(h.why)}</p>}
                   </li>
                 ))}
               </ul>
@@ -151,11 +154,11 @@ export default function ScenarioCard({
                 {s.channels.map((c, i) => (
                   <div key={i} className="rounded-xl border border-white/[0.08] px-3 py-2 text-sm">
                     <div className="font-medium">{c.name}</div>
-                    <p className="text-xs text-muted-foreground">{c.mechanism}</p>
+                    <p className="text-xs text-muted-foreground">{cited(c.mechanism)}</p>
                     {c.findings.length > 0 && (
                       <ul className="mt-1 list-disc space-y-0.5 pl-4 text-xs">
                         {c.findings.map((f, j) => (
-                          <li key={j}>{f}</li>
+                          <li key={j}>{cited(f)}</li>
                         ))}
                       </ul>
                     )}
@@ -165,7 +168,7 @@ export default function ScenarioCard({
             </div>
           )}
 
-          <Sources sources={s.sources.length ? s.sources : m.sources} />
+          <Sources sources={s.sources.length ? s.sources : m.sources} numbered={s.numbered} max={s.numbered ? 60 : 8} />
 
           <p className="text-xs text-muted-foreground">
             A rough what-if built from public information, not a prediction or financial advice. Atlas won’t trade unless you approve.
@@ -181,7 +184,7 @@ export default function ScenarioCard({
       {s.recommendation && (
         <p className="mt-1 line-clamp-1">
           <span className="text-muted-foreground">Recommended: </span>
-          {s.recommendation}
+          {cited(s.recommendation)}
         </p>
       )}
       <DecisionOptions messageId={m.id} options={m.options ?? s.options} resolved={m.resolved} onChoose={onChoose} disabled={disabled} />

@@ -88,7 +88,7 @@ export async function ensurePaperBook(base: Portfolio): Promise<PaperBook> {
   const book: PaperBook = {
     cash: base.cash,
     positions: Object.fromEntries(
-      base.holdings.map((x) => [x.ticker, { units: x.units, avgCost: x.avgCost ?? x.price, name: x.name, lastPrice: x.price }]),
+      base.holdings.map((x) => [x.ticker, { units: x.units, avgCost: x.avgCost ?? x.price, name: x.name, lastPrice: x.price, ...(x.kind ? { kind: x.kind } : {}) }]),
     ),
     seededFrom,
     seededAt: new Date().toISOString(),
@@ -100,12 +100,13 @@ export async function ensurePaperBook(base: Portfolio): Promise<PaperBook> {
 }
 
 function fromBook(book: PaperBook, base: Portfolio): Portfolio {
-  const livePrices = new Map(base.holdings.map((x) => [x.ticker, x.price]));
+  const live = new Map(base.holdings.map((x) => [x.ticker, x]));
   const holdings = Object.entries(book.positions)
     .filter(([, p]) => p.units > 1e-9)
     .map(([ticker, p]) => {
-      const price = livePrices.get(ticker) ?? p.lastPrice;
-      return { ticker, name: p.name, units: p.units, price, value: p.units * price, avgCost: p.avgCost, pnlPct: price / p.avgCost - 1 };
+      const price = live.get(ticker)?.price ?? p.lastPrice;
+      const kind = live.get(ticker)?.kind ?? p.kind ?? null;
+      return { ticker, name: p.name, units: p.units, price, value: p.units * price, avgCost: p.avgCost, pnlPct: price / p.avgCost - 1, kind };
     });
   return {
     ...base,

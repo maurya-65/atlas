@@ -165,7 +165,7 @@ export async function realPortfolio(): Promise<Portfolio | null> {
       const units = Number(p.units ?? 0);
       const price = Number(p.price ?? 0);
       const avg = p.cost_basis != null && Number(p.cost_basis) > 0 ? Number(p.cost_basis) : null;
-      const ins = p.instrument as { symbol?: string; raw_symbol?: string; description?: string | null };
+      const ins = p.instrument as { symbol?: string; raw_symbol?: string; description?: string | null; kind?: string };
       return {
         ticker: ins?.raw_symbol ?? ins?.symbol ?? "?",
         name: ins?.description ?? "",
@@ -174,6 +174,7 @@ export async function realPortfolio(): Promise<Portfolio | null> {
         value: units * price,
         avgCost: avg,
         pnlPct: avg && price > 0 ? price / avg - 1 : null,
+        kind: ins?.kind ?? null,
       };
     })
     .filter((h) => h.units !== 0);

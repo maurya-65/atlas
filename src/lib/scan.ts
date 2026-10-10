@@ -3,7 +3,7 @@ import { structured } from "./llm";
 import { dedupe, gatherCompany, gatherTopic, type CompanyBundle, type SourceItem } from "./sources";
 import { newMessage } from "./store";
 import { claudeOption } from "./handoff";
-import type { CardOption, ChatMessage, Portfolio, Rule, SourceRef } from "./types";
+import { isResearchableStock, type CardOption, type ChatMessage, type Portfolio, type Rule, type SourceRef } from "./types";
 
 const MAX_TICKERS = 6;
 const CLASSIFY_BATCH = 25;
@@ -174,7 +174,7 @@ export async function runScan(input: {
         "- Constraint options: 2-4 real choices, the recommended one FIRST with recommended=true and only that one. Kinds: research (ticker), approve_trade (ticker + side; a small simulated/limited trade of $" +
         `${SUGGESTED_TRADE_DOLLARS}), add_interest (topic to keep watching), dismiss. Always include dismiss last.\n` +
         "- Core principle: you never pick a strategy on your own. Frame trades as 'could be worth considering — your call', never as instructions. Prefer research over trading when evidence is thin.\n" +
-        "- Use only the numbered sources given; cite them by index in sourceIndices. Never invent facts, numbers or URLs.\n" +
+        "- Use only the numbered sources given; cite them by index in sourceIndices, not in the text. Never invent facts, numbers or URLs.\n" +
         "- Group related items into one message. title is a short headline (max 8 words). Fewer, better messages beat many.",
       prompt:
         `User's holdings:\n${positions || "(none)"}\nCash: $${portfolio.cash.toFixed(0)} of $${portfolio.total.toFixed(0)} total.\n` +
@@ -196,13 +196,22 @@ export async function runScan(input: {
   }
 
   const heldTickers = new Set(portfolio.holdings.map((h) => h.ticker));
-  const messages = cards.messages.slice(0, MAX_MESSAGES).map((m) => {
-    const sources = toRefs(m.sourceIndices.filter((i) => i >= 0 && i < important.length).map((i) => important[i]));
+  const kindOf = new Map(portfolio.holdings.map((h) => [h.ticker, h.kind]));
+  const messages = cards.messages.slice(0, MAX_MESSAGES).map((raw) => {
+    // The card lists its sources underneath, without numbers. A signal number the model also wrote into the
+    // text would match nothing there, so it is taken out of the text and its source is kept in the list.
+    const written = [raw.title, raw.text, raw.recommendation ?? ""].flatMap((t) => [...t.matchAll(/\[(\d+)\]/g)].map((x) => Number(x[1])));
+    const indices = [...new Set([...raw.sourceIndices, ...written])].filter((i) => Number.isInteger(i) && i >= 0 && i < important.length);
+    const sources = toRefs(indices.map((i) => important[i]));
+    const plain = (t: string) => t.replace(/\s?\[\d+\]/g, "").trim();
+    const m = { ...raw, title: plain(raw.title), text: plain(raw.text), recommendation: raw.recommendation == null ? null : plain(raw.recommendation) };
     if (m.type === "thought" || !m.options.length) {
       return newMessage({ kind: "thought", text: m.text, sources });
     }
     const options: CardOption[] = m.options
       .filter((o) => !(o.kind === "approve_trade" && (!o.ticker || !o.side)))
+      // Research only works on company stocks.
+      .filter((o) => !(o.kind === "research" && (!o.ticker || !isResearchableStock(o.ticker, kindOf.get(o.ticker.toUpperCase())))))
       // Can't sell what you don't own.
       .filter((o) => !(o.kind === "approve_trade" && o.side === "SELL" && !heldTickers.has(o.ticker!.toUpperCase())))
       .map((o) => {
