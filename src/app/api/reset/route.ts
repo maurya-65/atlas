@@ -5,9 +5,7 @@ const usd = (n: number) => n.toLocaleString("en-US", { style: "currency", curren
 
 /** Clears the conversation, rules and paper book but keeps the brokerage connection and the chosen account. */
 export async function POST() {
-  const before = await readStore();
-  await resetStore();
-  await updateStore((s) => {
+  await resetStore((before, s) => {
     s.snaptradeUser = before.snaptradeUser;
     s.selectedAccountId = before.selectedAccountId;
   });
