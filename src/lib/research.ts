@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { structured } from "./llm";
+import { structured, structuredWithSearch, type WebPage } from "./llm";
 import {
   dedupe,
   federalRegister,
@@ -9,19 +9,24 @@ import {
   secFilings,
   secRevenue,
   shortName,
+  stableId,
   type RevenuePoint,
   type SourceItem,
 } from "./sources";
 import type { AgentStep, GraphEdge, GraphNode, Holding, ResearchAngle, ResearchEvent, ResearchResult, Stance } from "./types";
 
-// Deep research: four analyst agents each read the public sources for one angle and write a short cited
-// report. Then each reads the others' reports and argues back (one debate round). A judge weighs the
-// debate into a verdict with a 0-100 confidence score. Every call is Opus at high effort; revenue growth
-// and position size are computed in code, never by the model.
+// Deep research: four analyst agents each start from the public sources for one angle, search the web
+// themselves to read past the titles, and write a short cited report. Then each reads the others' reports
+// and argues back (one debate round). A judge weighs the debate into a verdict with a 0-100 confidence
+// score. Every call is Opus at high effort; revenue growth and position size are computed in code, never
+// by the model.
 
 const EFFORT = "high" as const;
 const PER_ANGLE = 12;
 const MAX_SOURCES = 48;
+const SEARCHES_PER_ANALYST = 5;
+/** Pages from its own searches each analyst may cite */
+const WEB_PER_ANALYST = 8;
 
 const PLAIN =
   "The reader has no finance background. Use plain words, explain any term in half a sentence, no jargon. " +
@@ -103,10 +108,21 @@ const ANGLES: AngleDef[] = [
 const AnalystSchema = z.object({
   stance: z.enum(STANCES),
   score: z.number().describe("0-100: how confident you are in your stance, given how strong and recent the evidence is"),
-  report: z.string().describe("4-7 plain sentences from your angle only. Cite sources inline as [n], one number per bracket."),
+  report: z
+    .string()
+    .describe("4-7 plain sentences from your angle only. Cite inline, one source per bracket: [n] for a numbered source, [W1] for a page in webSources."),
   points: z
-    .array(z.object({ text: z.string().describe("One short plain sentence"), sources: z.array(z.number()).describe("Source numbers") }))
+    .array(
+      z.object({
+        text: z.string().describe("One short plain sentence"),
+        sources: z.array(z.number()).describe("Numbered source numbers"),
+        web: z.array(z.number()).describe("Positions in webSources (1 = [W1])"),
+      }),
+    )
     .describe("2-4 key points, each backed by at least one source"),
+  webSources: z
+    .array(z.object({ url: z.string().describe("Exactly as the search returned it"), title: z.string() }))
+    .describe(`Pages from your own web searches that you cite, most important first, at most ${WEB_PER_ANALYST}. Empty if you cite none.`),
 });
 
 const DebateSchema = z.object({
@@ -161,6 +177,24 @@ function cleanCites(text: string, count: number) {
   return text.replace(/\s?\[(\d+)\]/g, (m, n) => (Number(n) >= 1 && Number(n) <= count ? m : "")).trim();
 }
 
+/** Same page, however the link is written (www, trailing slash, #fragment). */
+function urlKey(url: string) {
+  try {
+    const u = new URL(url);
+    return `${u.hostname.replace(/^www\./, "")}${u.pathname.replace(/\/$/, "")}${u.search}`.toLowerCase();
+  } catch {
+    return url;
+  }
+}
+
+/** Turn an analyst's own [W1] citations into numbers in the shared list. Ones with no number are dropped. */
+function renumberWeb(text: string, numbers: Map<number, number>) {
+  return text.replace(/\s?\[W(\d+)\]/gi, (m, k) => {
+    const n = numbers.get(Number(k));
+    return n ? m.replace(/W\d+/i, String(n)) : "";
+  });
+}
+
 function numbered(items: { n: number; s: SourceItem }[]) {
   return items.map(({ n, s }) => `[${n}] ${s.kind.toUpperCase()} · ${s.publisher}${s.date ? ` · ${s.date}` : ""}: ${s.title}`).join("\n");
 }
@@ -211,22 +245,50 @@ export async function researchTicker(ticker: string, ctx: ResearchContext): Prom
 
   // One numbered list across all angles so every agent cites the same numbers.
   const all = dedupe(perAngle.flat()).slice(0, MAX_SOURCES);
-  const numberOf = new Map(all.map((s, i) => [s.url, i + 1]));
+  const numberOf = new Map(all.map((s, i) => [urlKey(s.url), i + 1]));
   const angleSources = perAngle.map((items) =>
-    items.flatMap((s) => (numberOf.has(s.url) ? [{ n: numberOf.get(s.url)!, s }] : [])),
+    items.flatMap((s) => (numberOf.has(urlKey(s.url)) ? [{ n: numberOf.get(urlKey(s.url))!, s }] : [])),
   );
+
+  // Pages an analyst found by searching join the end of the same list. Only pages a search really returned
+  // get a number, so a link the model made up can never become a source.
+  const addWebSources = (cited: { url: string; title: string }[], pages: WebPage[]) => {
+    const returned = new Map(pages.map((p) => [urlKey(p.url), p]));
+    /** The analyst's W number -> number in the shared list */
+    const numbers = new Map<number, number>();
+    const web: { n: number; s: SourceItem }[] = [];
+    cited.slice(0, WEB_PER_ANALYST).forEach((c, i) => {
+      const page = returned.get(urlKey(c.url));
+      if (!page) return;
+      const key = urlKey(page.url);
+      if (!numberOf.has(key)) {
+        let publisher = "Web";
+        try {
+          publisher = new URL(page.url).hostname.replace(/^www\./, "");
+        } catch {
+          // keep the generic label
+        }
+        all.push({ id: stableId(page.url), title: page.title || c.title, url: page.url, publisher, date: page.date, kind: "web", subject: t, query: "web search" });
+        numberOf.set(key, all.length);
+      }
+      const n = numberOf.get(key)!;
+      numbers.set(i + 1, n);
+      if (!web.some((w) => w.n === n)) web.push({ n, s: all[n - 1] });
+    });
+    return { numbers, web };
+  };
 
   say({
     agent: "Atlas",
     phase: "status",
-    text: `Found ${all.length} public sources. Handing them to ${ANGLES.length} analysts, one angle each.`,
+    text: `Found ${all.length} public sources. Handing them to ${ANGLES.length} analysts, one angle each. They can search the web for more.`,
     sources: all.map((s, i) => ({ n: i + 1, title: s.title, url: s.url, publisher: s.publisher })),
   });
   ANGLES.forEach((a, i) =>
     say({
       agent: a.name,
       phase: "reading",
-      text: `Reading ${angleSources[i].length} sources. My angle: ${a.focus}`,
+      text: `Reading ${angleSources[i].length} sources and searching the web. My angle: ${a.focus}`,
       sources: angleSources[i].map(({ n, s }) => ({ n, title: s.title, url: s.url, publisher: s.publisher })),
     }),
   );
@@ -247,7 +309,7 @@ export async function researchTicker(ticker: string, ctx: ResearchContext): Prom
     : "The user does not own this stock. Frame stances as: worth buying, avoid, or keep watching.";
 
   const header =
-    `Company: ${name} (${t})${company.industry ? `, industry: ${company.industry}` : ""}\n${positionText}\n` +
+    `Today: ${new Date().toISOString().slice(0, 10)}\nCompany: ${name} (${t})${company.industry ? `, industry: ${company.industry}` : ""}\n${positionText}\n` +
     `User interests: ${ctx.interests.join(", ") || "(none)"}\n\nQuarterly revenue (SEC XBRL, computed in code):\n${revenueText}`;
 
   // ---- 2. Analysts, in parallel ----
@@ -255,22 +317,48 @@ export async function researchTicker(ticker: string, ctx: ResearchContext): Prom
     ANGLES.map(async (a, i) => {
       const src = angleSources[i];
       try {
-        const out = await structured({
+        const { output, pages, searches } = await structuredWithSearch({
           system:
             `You are the "${a.name}" analyst on a research team. Your angle: ${a.focus} ` +
-            `Use ONLY the numbered sources and the revenue data given. If they are thin or off-topic, say so and pick not_enough_info with a low score. ${PLAIN}`,
-          prompt: `${header}\n\nYour sources:\n${numbered(src) || "(none found)"}\n\nWrite your short report, key points, stance and confidence score.`,
+            `You are given numbered sources (titles only) and revenue data. Search the web, up to ${SEARCHES_PER_ANALYST} times, to read what actually ` +
+            "happened behind the titles that matter and to fill gaps in your angle. Prefer recent, first-hand pages: company releases, filings, " +
+            "regulators, established news. Base every claim on the numbered sources, the revenue data or pages your searches returned, never on memory. " +
+            "Cite numbered sources as [n]. List the web pages you rely on in webSources and cite them as [W1], [W2] by their position in that list. " +
+            `If the evidence is still thin or off-topic, say so and pick not_enough_info with a low score. ${PLAIN}`,
+          prompt: `${header}\n\nYour sources:\n${numbered(src) || "(none found)"}\n\nResearch your angle, then write your short report, key points, stance and confidence score.`,
           schema: AnalystSchema,
-          maxTokens: 16000,
+          maxSearches: SEARCHES_PER_ANALYST,
+          maxTokens: 24000,
           effort: EFFORT,
         });
-        log({ role: "analyst", task: `${a.name}: ${STANCE_WORDS[out.stance]}, ${clampScore(out.score)}/100`, sourcesRead: src.length });
+        const { numbers, web } = addWebSources(output.webSources, pages);
+        const out = {
+          stance: output.stance,
+          score: output.score,
+          report: renumberWeb(output.report, numbers),
+          points: output.points.map((p) => ({
+            text: renumberWeb(p.text, numbers),
+            sources: [...p.sources, ...p.web.flatMap((k) => numbers.get(k) ?? [])],
+          })),
+        };
+        const read = src.length + web.length;
+        if (searches) {
+          say({
+            agent: a.name,
+            phase: "reading",
+            text: web.length
+              ? `I searched the web ${searches} time${searches === 1 ? "" : "s"} and I'm citing ${web.length} page${web.length === 1 ? "" : "s"} I found.`
+              : `I searched the web ${searches} time${searches === 1 ? "" : "s"} but found nothing better than the sources I was given.`,
+            sources: web.map(({ n, s }) => ({ n, title: s.title, url: s.url, publisher: s.publisher })),
+          });
+        }
+        log({ role: "analyst", task: `${a.name}: ${STANCE_WORDS[out.stance]}, ${clampScore(out.score)}/100`, sourcesRead: read });
         say({ agent: a.name, phase: "report", text: cleanCites(out.report, all.length), stance: out.stance, score: clampScore(out.score) });
-        return { def: a, src, out, failed: false };
+        return { def: a, read, out, failed: false };
       } catch {
         log({ role: "analyst", task: `${a.name}: couldn't finish`, sourcesRead: src.length });
         say({ agent: a.name, phase: "status", text: "I couldn't finish my report, so my angle will be missing." });
-        return { def: a, src, out: null, failed: true };
+        return { def: a, read: src.length, out: null, failed: true };
       }
     }),
   );
@@ -319,7 +407,7 @@ export async function researchTicker(ticker: string, ctx: ResearchContext): Prom
       return {
         name: r.def.name,
         focus: r.def.focus,
-        sourcesRead: r.src.length,
+        sourcesRead: r.read,
         stance: "not_enough_info",
         score: 0,
         report: "This analyst couldn't finish, so its angle is missing from the verdict.",
@@ -334,7 +422,7 @@ export async function researchTicker(ticker: string, ctx: ResearchContext): Prom
     return {
       name: r.def.name,
       focus: r.def.focus,
-      sourcesRead: r.src.length,
+      sourcesRead: r.read,
       stance: r.out.stance,
       score: clampScore(r.out.score),
       report: cleanCites(r.out.report, all.length),

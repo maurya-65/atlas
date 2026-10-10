@@ -171,7 +171,7 @@ export interface ResearchEvent {
   text: string;
   stance?: Stance;
   score?: number;
-  /** For "reading": what the agent is reading. For the first "status": the full numbered list. */
+  /** For "reading": what the agent is reading, or the pages it found by searching. For the first "status": the starting numbered list. */
   sources?: { n: number; title: string; url: string; publisher?: string }[];
   at: string;
 }

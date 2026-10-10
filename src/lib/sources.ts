@@ -9,7 +9,8 @@ export interface SourceItem {
   url: string;
   publisher: string;
   date: string;
-  kind: "news" | "filing" | "regulation";
+  /** "web" = a page an analyst found by searching, not one of the feeds below */
+  kind: "news" | "filing" | "regulation" | "web";
   subject: string;
   query: string;
 }

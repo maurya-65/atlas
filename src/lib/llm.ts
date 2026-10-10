@@ -41,3 +41,75 @@ export async function structured<S extends z.ZodType>(opts: {
   if (response.parsed_output == null) throw new Error(`Model returned no parseable output (stop_reason: ${response.stop_reason}).`);
   return response.parsed_output as z.infer<S>;
 }
+
+export interface WebPage {
+  url: string;
+  title: string;
+  /** YYYY-MM-DD when the search engine gave a readable page date, otherwise "" */
+  date: string;
+}
+
+// A long searching turn can come back paused; this is how many times we send it back to carry on.
+const MAX_CONTINUATIONS = 4;
+
+function pageDate(age: string | null) {
+  const d = age ? new Date(age) : null;
+  if (!d || isNaN(d.getTime())) return "";
+  const two = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
+}
+
+/**
+ * Like structured(), but the model searches the web itself before answering. Also returns every page its
+ * searches came back with, so the caller can check that a link the model cites really came from a search.
+ */
+export async function structuredWithSearch<S extends z.ZodType>(opts: {
+  system: string;
+  prompt: string;
+  schema: S;
+  maxSearches: number;
+  maxTokens?: number;
+  effort?: "low" | "medium" | "high";
+}): Promise<{ output: z.infer<S>; pages: WebPage[]; searches: number }> {
+  // The answer is parsed here, not by the SDK: only the last text block is the JSON.
+  const { parse, ...format } = betaZodOutputFormat(opts.schema);
+  const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: opts.prompt }];
+  const pages = new Map<string, WebPage>();
+  let searches = 0;
+
+  for (let turn = 0; ; turn++) {
+    // Streamed, because a searching turn can run for minutes.
+    const response = await anthropic.beta.messages
+      .stream({
+        model: MAIN_MODEL,
+        max_tokens: opts.maxTokens ?? 16000,
+        system: opts.system,
+        messages,
+        tools: [{ type: "web_search_20260209", name: "web_search", max_uses: Math.max(1, opts.maxSearches - searches) }],
+        output_config: { format, effort: opts.effort ?? "medium" },
+        betas: ["server-side-fallback-2026-07-01"],
+        fallbacks: "default",
+      })
+      .finalMessage();
+
+    searches += response.usage.server_tool_use?.web_search_requests ?? 0;
+    for (const block of response.content) {
+      // A failed search carries an error object instead of a list of results.
+      if (block.type !== "web_search_tool_result" || !Array.isArray(block.content)) continue;
+      for (const r of block.content) {
+        if (!pages.has(r.url)) pages.set(r.url, { url: r.url, title: r.title, date: pageDate(r.page_age) });
+      }
+    }
+
+    if (response.stop_reason === "refusal") throw new RefusalError("The model declined this request.");
+    if (response.stop_reason === "pause_turn" && turn < MAX_CONTINUATIONS) {
+      messages.push({ role: "assistant", content: response.content });
+      continue;
+    }
+
+    let text: string | null = null;
+    for (const block of response.content) if (block.type === "text") text = block.text;
+    if (text == null) throw new Error(`Model returned no parseable output (stop_reason: ${response.stop_reason}).`);
+    return { output: parse(text) as z.infer<S>, pages: [...pages.values()], searches };
+  }
+}

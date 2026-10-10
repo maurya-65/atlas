@@ -53,7 +53,7 @@ export default function AgentRoom({
 }: {
   events: ResearchEvent[];
   live?: boolean;
-  /** Numbered sources for [n] links; when live, they arrive in the first event */
+  /** Numbered sources for [n] links; when live, they arrive in the events */
   sources?: SourceRef[];
 }) {
   const tickers = useMemo(() => [...new Set(events.map((e) => e.ticker))], [events]);
@@ -72,9 +72,9 @@ export default function AgentRoom({
   const mine = events.filter((e) => e.ticker === ticker);
   const sources: (SourceRef | undefined)[] = useMemo(() => {
     if (givenSources) return givenSources;
-    const list = mine.find((e) => e.agent === "Atlas" && e.sources?.length)?.sources ?? [];
+    // Atlas sends the starting list; analysts add the pages they find on the web as they go.
     const out: (SourceRef | undefined)[] = [];
-    for (const s of list) out[s.n - 1] = { title: s.title, url: s.url, publisher: s.publisher };
+    for (const e of mine) for (const s of e.sources ?? []) out[s.n - 1] = { title: s.title, url: s.url, publisher: s.publisher };
     return out;
   }, [givenSources, mine]);
 
