@@ -37,7 +37,7 @@ Three things are worth knowing before reading the code.
 
 ## Features
 
-- **Research.** Four analysts each take one angle on a stock (business, regulation, industry, operations). They start from the sources Atlas collects, search the web, and write a short cited report. They read each other's reports and argue once, then a judge gives a verdict (buy more, sell some, hold) with a 0-100 confidence score. *Review my portfolio* does this for the three biggest holdings.
+- **Research.** Eight analysts each take one angle on a stock: business, financial health, valuation, industry, regulation, people and operations, insiders, and macro. They start from the sources Atlas collects, search the web, and write a short cited report. They read each other's reports and argue once, then a judge gives a verdict (buy more, sell some, hold) with a 0-100 confidence score. *Review my portfolio* does this for the three biggest holdings.
 - **What-if.** "What if Taiwan blocks chip exports?" A planner splits the scenario into the ways it could spread, researchers read the news for each, and a synthesizer maps it onto your holdings with a rough dollar range. The dollar math is done in code, not by the model.
 - **Scan and rules.** Rule checks (concentration, drawdown, idle cash, price levels) are plain arithmetic. Rules are added on the *Rules & topics* page, which also shows what each one finds right now. *Check now* in the Inbox runs the rules, reads new filings and headlines, and posts a note or a decision card.
 - **Daily run.** Once a day: what changed, what the rules flagged, research on the next holding in rotation, and suggestions you can try as paper trades. Off until you turn it on.
@@ -73,7 +73,7 @@ Set these in `.env.local`. `.env.example` has the same list with comments.
 | `CRON_SECRET`, `KV_REST_API_URL`, `KV_REST_API_TOKEN` | Hosted only. See [Deploying to Vercel](#deploying-to-vercel). |
 | `ATLAS_APP_URL` | The deployment's address, used in the notes the MCP server gives Claude. Default `http://localhost:3000`. |
 
-**Cost.** Research runs on Claude Opus 5.5 and costs about $1.50 per stock, most of it the web pages the analysts read. Questions in Chat use Claude Sonnet 5.5 at medium effort, about half a cent each (`CHAT_MODEL` in `src/lib/llm.ts`). The Claude Deep Research route below costs the API nothing.
+**Cost.** Research runs on Claude Opus 5.5, most of the cost being the web pages the analysts read. It measured about $1.50 per stock with four analysts; eight cost more (each searches three times instead of five to keep that down) and haven't been measured yet. Questions in Chat use Claude Sonnet 5.5 at medium effort, about half a cent each (`CHAT_MODEL` in `src/lib/llm.ts`). The Claude Deep Research route below costs the API nothing.
 
 ## Safety model
 
@@ -157,7 +157,7 @@ Download the zip from the **Claude setup** tab, or zip the folder yourself so th
 
 Every push to the production branch deploys by itself once the repository is connected.
 
-`vercel.json` calls `/api/cron/daily` once a day at 13:00 UTC, so on Vercel the daily run starts then rather than at the time picked in the app. Requests are limited to 300 seconds and one stock takes about a minute and a half, so keep the daily run at one or two stocks.
+`vercel.json` calls `/api/cron/daily` once a day at 13:00 UTC, so on Vercel the daily run starts then rather than at the time picked in the app. Requests are limited to 300 seconds, and a stock took about a minute and a half with four analysts (not re-measured with eight), so keep the daily run at one or two stocks.
 
 ## Tests
 

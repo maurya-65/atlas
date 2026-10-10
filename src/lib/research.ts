@@ -15,16 +15,17 @@ import {
 } from "./sources";
 import type { AgentStep, GraphEdge, GraphNode, Holding, ResearchAngle, ResearchEvent, ResearchResult, Stance } from "./types";
 
-// Deep research: four analyst agents each start from the public sources for one angle, search the web
+// Deep research: eight analyst agents each start from the public sources for one angle, search the web
 // themselves to read past the titles, and write a short cited report. Then each reads the others' reports
 // and argues back (one debate round). A judge weighs the debate into a verdict with a 0-100 confidence
 // score. Every call is Opus at high effort; revenue growth and position size are computed in code, never
 // by the model.
 
 const EFFORT = "high" as const;
-const PER_ANGLE = 12;
-const MAX_SOURCES = 48;
-const SEARCHES_PER_ANALYST = 5;
+const PER_ANGLE = 10;
+const MAX_SOURCES = 90;
+// Eight analysts search in parallel, so each gets fewer searches than a team of four would (the pages they read are most of the cost).
+const SEARCHES_PER_ANALYST = 3;
 /** Pages from its own searches each analyst may cite */
 const WEB_PER_ANALYST = 8;
 
@@ -100,6 +101,51 @@ const ANGLES: AngleDef[] = [
         await Promise.all([
           news(`"${c.short}" strike OR union OR layoffs`, c, 5),
           news(`"${c.short}" CEO OR executive OR "supply chain"`, c, 5),
+        ])
+      ).flat(),
+  },
+  {
+    name: "Financial health",
+    focus: "The balance sheet and cash: debt against cash, free cash flow, margins, dividends, buybacks and whether the company can fund itself.",
+    fetch: async (c) =>
+      [
+        ...c.filings,
+        ...(await Promise.all([
+          news(`"${c.short}" debt OR "cash flow" OR "free cash flow" OR margins`, c, 5),
+          news(`"${c.short}" dividend OR buyback OR "credit rating"`, c, 4),
+        ])).flat(),
+      ],
+  },
+  {
+    name: "Valuation & expectations",
+    focus: "What the market expects: analyst price targets and rating changes, how the valuation compares with rivals and its own history, and what is already priced in.",
+    fetch: async (c) =>
+      (
+        await Promise.all([
+          news(`"${c.short}" "price target" OR upgrade OR downgrade`, c, 6),
+          news(`"${c.short}" valuation OR "P/E" OR "analyst expectations"`, c, 5),
+        ])
+      ).flat(),
+  },
+  {
+    name: "Insiders & ownership",
+    focus: "Who is buying and selling: executives and directors trading their own shares, big funds adding or cutting, short sellers and activist investors.",
+    fetch: async (c) =>
+      (
+        await Promise.all([
+          news(`"${c.short}" "insider buying" OR "insider selling" OR "Form 4"`, c, 5),
+          news(`"${c.short}" "short interest" OR activist OR "institutional investors" OR "13F"`, c, 5),
+        ])
+      ).flat(),
+  },
+  {
+    name: "Macro & geopolitics",
+    focus: "Outside forces: interest rates, inflation, the dollar, commodity prices, tariffs, trade tensions and conflicts that move this company or its customers.",
+    fetch: async (c) =>
+      (
+        await Promise.all([
+          news(`"${c.short}" tariffs OR "interest rates" OR inflation OR currency`, c, 5),
+          news(`${c.industry ?? c.short} geopolitics OR "trade war" OR sanctions OR "commodity prices"`, c, 5),
         ])
       ).flat(),
   },

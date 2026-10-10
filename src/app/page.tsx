@@ -224,7 +224,7 @@ export default function Home() {
   const ask = (question: string) => inChat(question, "Thinking…", (threadId) => api("/api/chat", { threadId }));
 
   const research = (ticker: string) =>
-    inChat(`Research ${ticker}`, `${ticker}: four analysts are reading filings, news and the web…`, (threadId) =>
+    inChat(`Research ${ticker}`, `${ticker}: eight analysts are reading filings, news and the web…`, (threadId) =>
       stream("/api/research", { ticker, threadId }),
     );
 

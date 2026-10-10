@@ -21,7 +21,16 @@ const PHASE_LABEL: Record<ResearchEvent["phase"], string> = {
 };
 
 // One grey per analyst seat; meaning never depends on colour (names are always shown).
-const SEAT_COLORS = ["bg-neutral-200 text-black", "bg-neutral-400 text-black", "bg-neutral-600 text-white", "bg-neutral-800 text-white"];
+const SEAT_COLORS = [
+  "bg-neutral-100 text-black",
+  "bg-neutral-300 text-black",
+  "bg-neutral-400 text-black",
+  "bg-neutral-500 text-white",
+  "bg-neutral-600 text-white",
+  "bg-neutral-700 text-white",
+  "bg-neutral-800 text-white",
+  "bg-neutral-900 text-white",
+];
 
 function initials(name: string) {
   return name

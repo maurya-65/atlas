@@ -110,7 +110,7 @@ export function ChatStart({
     },
     {
       title: "Research a stock",
-      text: "Four analysts read filings, news and the web, argue it out, and give a verdict. It takes a minute or two.",
+      text: "Eight analysts read filings, news and the web, argue it out, and give a verdict. It takes a few minutes.",
       chips: [
         ...tickers.slice(0, 2).map((t) => ({ label: `Research ${t}`, run: () => onResearch(t) })),
         ...SECTOR_EXAMPLES.slice(0, 1).map((s) => ({ label: `Research the ${s} sector`, run: () => onSector(s) })),
