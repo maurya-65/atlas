@@ -1,4 +1,4 @@
-// Runs on the Atlas web app (localhost). Turns Atlas's own "Deep research in Claude" links into one-click
+// Runs on the Atlas web app (localhost, or an address added on the options page). Turns Atlas's own "Deep research in Claude" links into one-click
 // jobs for the extension, and tells the page what the Claude tab is doing.
 
 // Set after load so React's hydration of <html> isn't disturbed.
@@ -33,8 +33,26 @@ document.addEventListener(
   true,
 );
 
-chrome.runtime.onMessage.addListener((msg) => {
+chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   if (!msg || typeof msg.type !== "string") return;
+  if (msg.type === "atlas:import") {
+    // The finished report, from the extension. Post it from this page so Atlas's own sign-in cookie goes with it.
+    if (typeof msg.text !== "string") return;
+    const ticker = typeof msg.ticker === "string" ? msg.ticker : "";
+    fetch("/api/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: msg.text, ticker: ticker || undefined }),
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return reply({ ok: false, error: data.error || `Atlas said ${res.status}` });
+        window.dispatchEvent(new CustomEvent("atlas:imported", { detail: { type: "atlas:imported", ticker } }));
+        reply({ ok: true });
+      })
+      .catch((e) => reply({ ok: false, error: String((e && e.message) || e) }));
+    return true; // async reply
+  }
   if (["atlas:imported", "atlas:claude-status", "atlas:claude-error"].includes(msg.type)) {
     window.dispatchEvent(new CustomEvent(msg.type, { detail: msg }));
   }

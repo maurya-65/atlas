@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Atlas Deep Research</title>
+  <style>
+    :root { color-scheme: light dark; --line: color-mix(in srgb, currentColor 18%, transparent); }
+    body { font: 15px/1.5 system-ui, sans-serif; max-width: 560px; margin: 40px auto; padding: 0 16px; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    p { margin: 0 0 12px; opacity: 0.8; }
+    form { display: flex; gap: 8px; margin: 16px 0 8px; }
+    input { flex: 1; min-width: 0; padding: 8px 10px; font: inherit; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: inherit; }
+    button { padding: 8px 14px; font: inherit; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: inherit; cursor: pointer; }
+    button.primary { background: CanvasText; color: Canvas; }
+    ul { list-style: none; padding: 0; margin: 16px 0; }
+    li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+    li small { opacity: 0.65; }
+    #status { min-height: 1.5em; margin: 0; }
+    #status.error { color: #c0392b; }
+  </style>
+</head>
+<body>
+  <h1>Atlas Deep Research</h1>
+  <p>Atlas on this computer (localhost) works without any setup. If you use Atlas at another address, such as a hosted copy, add it here once.</p>
+  <form id="add">
+    <input id="address" type="text" placeholder="https://your-atlas.vercel.app" autocomplete="off" spellcheck="false" aria-label="Atlas address" />
+    <button class="primary" type="submit">Add address</button>
+  </form>
+  <p id="status" role="status"></p>
+  <ul id="list"></ul>
+  <p>Chrome asks you to allow access to that one address. The extension never reads any other site apart from claude.ai. After adding an address, reload your Atlas tab.</p>
+  <script src="origins.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

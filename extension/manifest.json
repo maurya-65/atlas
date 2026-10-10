@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Atlas Deep Research",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Start Claude Deep Research from Atlas in one click. You press send; the finished report comes back to Atlas as a research card.",
   "minimum_chrome_version": "102",
   "icons": {
@@ -10,8 +10,11 @@
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   },
-  "permissions": ["storage"],
+  "permissions": ["storage", "scripting"],
   "host_permissions": ["https://claude.ai/*", "http://localhost/*", "http://127.0.0.1/*"],
+  "optional_host_permissions": ["https://*/*"],
+  "action": { "default_title": "Atlas Deep Research: add your Atlas address" },
+  "options_ui": { "page": "options.html", "open_in_tab": true },
   "background": { "service_worker": "background.js" },
   "content_scripts": [
     {
