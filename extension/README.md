@@ -1,4 +1,4 @@
-# Atlas Deep Research for Claude (Chrome extension)
+# Atlas Deep Research (Chrome extension)
 
 One click in Atlas opens claude.ai with Research mode on and the prompt filled in. You press send, and the result comes back to Atlas as a research card by itself. Without this extension you do it all by hand: turn on Research, press send, wait, then copy and paste the answer.
 
@@ -13,12 +13,33 @@ The research runs on your own Claude plan, so it costs Atlas nothing. The import
 | `background.js` | Holds one job per Claude tab it opened, and sends the finished report to Atlas (`POST <atlas origin>/api/import`). |
 | `claude.js` | Runs on claude.ai, but only acts in the tab the extension opened. Turns on Research mode and types the prompt, waits for you to press send, shows a status badge and watches for the result. |
 
-## Install
+## Set up (first time)
 
-1. Open `chrome://extensions`.
-2. Turn on **Developer mode** (top right).
-3. Click **Load unpacked** and select this `extension` folder.
-4. Reload the Atlas tab (http://localhost:3000), so the extension can attach to it.
+You need three things: a paid Claude plan, Atlas running on your computer, and this extension. About five minutes.
+
+**1. A paid Claude plan.** Claude's Research mode (Deep Research) is not on the free plan. You need Pro or higher: Max has it too, and Team and Enterprise list it (check [claude.com/pricing](https://claude.com/pricing) for your plan). Sign in to claude.ai in the same Chrome you will use for Atlas.
+   *Check:* in a new Claude chat, click **+**. If you see **Research**, you are set.
+
+**2. Atlas running.** Follow "Run it" in the main README, then open http://localhost:3000. The extension only works with Atlas on your own computer (`localhost`), not a hosted copy.
+
+**3. Install the extension.**
+   - From the Chrome Web Store, if it is listed there: search for **Atlas Deep Research** and click **Add to Chrome**.
+   - Or by hand: open `chrome://extensions`, turn on **Developer mode** (top right), click **Load unpacked** and choose this `extension` folder.
+
+   Then reload the Atlas tab so the extension can attach to it.
+   *Check:* in Atlas, Settings → Claude Deep Research shows **Extension installed**.
+
+**4. Run your first research.**
+   1. In Atlas, open Chat, choose **Research a stock**, type a ticker (for example `AAPL`) and click **Deep research in Claude**.
+   2. A Claude tab opens with Research turned on and the prompt filled in. Read it and press **send**.
+   3. Keep that tab open. It takes about 10 minutes. A badge in the corner shows progress.
+   4. When it finishes, the research card appears in your Inbox in Atlas. Nothing is bought or sold unless you approve it there.
+
+**5. Optional, for better results.**
+   - Connect SnapTrade to Claude so it reads your real holdings (steps at the end of this file).
+   - Install the Atlas research skill from `claude-skill/` (see the main README). It adds detailed checklists and a fixed report format.
+
+If something does not work, see Troubleshooting below. Without the extension everything still works by hand: the link opens Claude with the prompt filled in, you turn on Research and press send, and you paste the answer into Atlas under Settings.
 
 After you edit any file in this folder, press the reload icon on the extension's card in `chrome://extensions`, then reload the Atlas tab.
 

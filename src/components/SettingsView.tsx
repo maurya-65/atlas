@@ -169,7 +169,10 @@ function ClaudeCard() {
     <Card>
       <CardHeader>
         <CardTitle>Claude Deep Research</CardTitle>
-        <CardDescription>Optional. A longer research run in Claude itself, started from the “Deep research in Claude” buttons.</CardDescription>
+        <CardDescription>
+          Optional. A longer research run in Claude itself, started from the “Deep research in Claude” buttons. Claude’s Research mode needs a paid Claude plan
+          (Pro or higher).
+        </CardDescription>
         <CardAction>
           <Badge variant={extensionReady ? "up" : "secondary"}>{extensionReady ? "Extension installed" : "Extension not found"}</Badge>
         </CardAction>

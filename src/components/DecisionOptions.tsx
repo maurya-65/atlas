@@ -94,7 +94,7 @@ export default function DecisionOptions({
       {paperNote && <p className="mt-2 text-xs text-muted-foreground">{paperNote}</p>}
       {openedClaude && (
         <p className="mt-2 text-sm text-muted-foreground">
-          In Claude: turn on <strong className="text-foreground">Research</strong>, check the prompt, and press send. When it finishes, copy the whole
+          In Claude (Research needs a paid Claude plan): turn on <strong className="text-foreground">Research</strong>, check the prompt, and press send. When it finishes, copy the whole
           answer and paste it into <strong className="text-foreground">Bring back a Claude report</strong> under Settings.
         </p>
       )}
