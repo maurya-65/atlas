@@ -4,14 +4,15 @@ import { activePortfolio } from "./portfolio";
 import { addMessages, newMessage, readStore, updateStore } from "./store";
 import type { ChatMessage, MemoryNote } from "./types";
 
-// Quick questions in the app. The model gets the portfolio and Atlas's notes but no tools, so an answer
-// can never trade or look anything up. Each exchange leaves a one-line note: those notes are the memory.
+// Questions in a chat. The model gets the portfolio, the chat so far and Atlas's notes, but no tools, so an
+// answer can never trade or look anything up. Each answer leaves a one-line note: those notes are the memory.
 
 const MAX_NOTES = 40;
-const RECENT_EXCHANGES = 3;
+const HISTORY_LINES = 12;
+const LINE_LENGTH = 500;
 
 const Answer = z.object({
-  answer: z.string().describe("The reply, in plain words. A few short sentences, no headings or lists."),
+  answer: z.string().describe("The reply, in plain words: two to four short sentences unless the question needs more. No headings or lists."),
   note: z.string().describe("One sentence for Atlas's memory: what was asked, the gist of the answer, and any preference or decision the user stated."),
 });
 
@@ -23,10 +24,27 @@ export async function remember(text: string, from: MemoryNote["from"]): Promise<
   });
 }
 
-export async function ask(question: string): Promise<ChatMessage[]> {
-  const [p, s] = await Promise.all([activePortfolio(), readStore()]);
-  const total = p.total || 1;
+/** One line of a chat for the model. Research and what-if cards are summed up, not pasted whole. */
+function lineOf(m: ChatMessage): string | null {
+  const cut = (t: string) => (t.length > LINE_LENGTH ? `${t.slice(0, LINE_LENGTH)}…` : t);
+  if (m.kind === "user") return `User: ${cut(m.text)}`;
+  if (m.kind === "agent") return `Atlas: ${cut(m.text)}`;
+  if (m.kind === "research" && m.research) {
+    const r = m.research;
+    return `Atlas researched ${r.ticker}: ${r.stance.replace(/_/g, " ")}, confidence ${r.confidenceScore ?? "?"}/100. ${cut(r.thesis)}`;
+  }
+  if (m.kind === "scenario" && m.scenario) return `Atlas ran a what-if, "${m.scenario.scenario}": ${cut(m.scenario.headline)}`;
+  return null;
+}
 
+/** Answer the last message of a chat, which has to be the user's. Returns the answer. */
+export async function answer(threadId: string): Promise<ChatMessage> {
+  const [p, s] = await Promise.all([activePortfolio(), readStore()]);
+  const chat = s.messages.filter((m) => m.threadId === threadId);
+  const question = chat.at(-1);
+  if (question?.kind !== "user") throw new Error("There is nothing to answer in this chat yet.");
+
+  const total = p.total || 1;
   const holdings = p.holdings
     .filter((h) => h.value > 0)
     .sort((a, b) => b.value - a.value)
@@ -42,31 +60,29 @@ export async function ask(question: string): Promise<ChatMessage[]> {
     verdicts.set(r.ticker, `- ${r.ticker}: ${r.stance.replace(/_/g, " ")}, confidence ${r.confidenceScore ?? "?"}/100 (${r.generatedAt.slice(0, 10)})`);
   }
 
-  const answers = s.messages.filter((m) => m.replyTo).slice(-RECENT_EXCHANGES);
-  const recent = answers.map((a) => `User: ${s.messages.find((m) => m.id === a.replyTo)?.text ?? ""}\nAtlas: ${a.text}`);
+  const earlier = chat.slice(0, -1).map(lineOf).filter((l) => l !== null).slice(-HISTORY_LINES);
 
   const out = await structured({
     model: CHAT_MODEL,
-    effort: "low",
-    maxTokens: 2000,
+    effort: "medium",
+    maxTokens: 4000,
     schema: Answer,
     system:
       "You are Atlas, an investing assistant for someone with no finance background. Answer in plain words and explain any term in half a sentence. " +
       "The portfolio, rules and notes below are the only facts you have about the user's money; use them when the question is about it. " +
       "You cannot look anything up: for recent news about a company, say that Research or a what-if in Atlas will check it. " +
-      "You cannot trade: decisions are made on Atlas's cards. Give information, not instructions to buy or sell. If you don't know, say so.",
+      "You cannot trade: decisions are made on Atlas's cards. Give information, not instructions to buy or sell. If you don't know, say so. Write tickers exactly as they appear in the portfolio.",
     prompt:
       `Portfolio (${p.sourceLabel}): $${p.total.toFixed(0)} in total, $${p.cash.toFixed(0)} of it cash.\n${holdings.join("\n") || "(no holdings)"}\n\n` +
       `Rules the user set:\n${s.rules.map((r) => `- ${r.text}`).join("\n") || "(none)"}\n\n` +
       `Topics they follow: ${s.interests.join(", ") || "(none)"}\n\n` +
       `Atlas's research so far:\n${[...verdicts.values()].join("\n") || "(none)"}\n\n` +
       `What Atlas remembers from earlier conversations:\n${s.memory.map((n) => `- ${n.at.slice(0, 10)}: ${n.text}`).join("\n") || "(nothing yet)"}\n\n` +
-      (recent.length ? `The last exchanges:\n${recent.join("\n\n")}\n\n` : "") +
-      `Question: ${question}`,
+      (earlier.length ? `This chat so far:\n${earlier.join("\n")}\n\n` : "") +
+      `Question: ${question.text}`,
   });
 
-  const asked = newMessage({ kind: "user", text: question });
-  const posted = await addMessages(asked, newMessage({ kind: "agent", text: out.answer.trim(), replyTo: asked.id }));
+  const [reply] = await addMessages(newMessage({ kind: "agent", text: out.answer.trim(), threadId }));
   await remember(out.note, "atlas");
-  return posted;
+  return reply;
 }

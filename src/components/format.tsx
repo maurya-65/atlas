@@ -1,10 +1,11 @@
-import type { ChatMessage, DailyState, MemoryNote, Mode, Portfolio, Rule } from "@/lib/types";
+import type { ChatMessage, ChatThread, DailyState, MemoryNote, Mode, Portfolio, Rule } from "@/lib/types";
 import { Fragment, type ReactNode } from "react";
 
 export interface AppState {
   mode: Mode;
   interests: string[];
   rules: Rule[];
+  threads: ChatThread[];
   messages: ChatMessage[];
   portfolio: Portfolio | null;
   snaptradeConfigured: boolean;

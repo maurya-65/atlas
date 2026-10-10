@@ -4,6 +4,7 @@ import { listAccounts, snaptradeConfigured, snaptradeErrorText } from "@/lib/sna
 import { LIVE_LIMITS, liveSpentToday } from "@/lib/trading";
 import { dailyState } from "@/lib/daily";
 import { atlasPassword } from "@/lib/auth";
+import { threadsOf } from "@/lib/threads";
 import type { Portfolio } from "@/lib/types";
 
 export async function GET() {
@@ -31,6 +32,7 @@ export async function GET() {
     mode: s.mode,
     interests: s.interests,
     rules: s.rules,
+    threads: threadsOf(s.messages),
     messages: s.messages,
     portfolio,
     portfolioError,

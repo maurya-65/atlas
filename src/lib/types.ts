@@ -97,8 +97,15 @@ export interface ChatMessage {
   daily?: DailyBrief;
   /** where the card came from, e.g. "Claude (via Atlas MCP)" */
   origin?: string;
-  /** an answer to a quick question: the id of the question's message */
-  replyTo?: string;
+  /** The chat this message belongs to. Messages without one are what Atlas found on its own and live in the Inbox. */
+  threadId?: string;
+}
+
+/** A chat, worked out from the messages that share a threadId. */
+export interface ChatThread {
+  id: string;
+  title: string;
+  updatedAt: string;
 }
 
 /** One line Atlas keeps about a conversation, so later answers have context. */

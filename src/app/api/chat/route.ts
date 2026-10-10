@@ -1,15 +1,15 @@
-import { ask } from "@/lib/chat";
+import { answer } from "@/lib/chat";
 import { errorResponse } from "@/lib/http";
+import { chatId } from "@/lib/threads";
 
 export const maxDuration = 60;
 
+/** Answer the last thing the user said in a chat. */
 export async function POST(req: Request) {
   try {
-    const { question } = await req.json();
-    const text = typeof question === "string" ? question.trim() : "";
-    if (!text) return Response.json({ error: "Type a question first." }, { status: 400 });
-    if (text.length > 500) return Response.json({ error: "Keep the question under 500 characters." }, { status: 400 });
-    return Response.json({ messages: await ask(text) });
+    const threadId = chatId((await req.json()).threadId);
+    if (!threadId) return Response.json({ error: "Which chat is this for?" }, { status: 400 });
+    return Response.json({ message: await answer(threadId) });
   } catch (e) {
     return errorResponse(e);
   }

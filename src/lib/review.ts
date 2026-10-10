@@ -62,7 +62,7 @@ export function researchOptions(r: ResearchResult, holding: Holding | undefined,
 /** Run deep research on one ticker and post the card. */
 export async function researchAndPost(
   ticker: string,
-  opts: { text?: string; origin?: string; onEvent?: (e: ResearchEvent) => void } = {},
+  opts: { text?: string; origin?: string; threadId?: string; onEvent?: (e: ResearchEvent) => void } = {},
 ) {
   const [p, s] = await Promise.all([activePortfolio(), readStore()]);
   const holding = p.holdings.find((h) => h.ticker === ticker);
@@ -72,6 +72,7 @@ export async function researchAndPost(
       kind: "research",
       text: opts.text ?? "",
       origin: opts.origin,
+      threadId: opts.threadId,
       research,
       sources: research.sources,
       options: researchOptions(research, holding, p.total),
@@ -108,12 +109,17 @@ function pickHoldings(p: Portfolio) {
 // A review is three steps so the app can make one request per stock (a host may cut a single request off
 // after a few minutes): start (say what will be reviewed), one research per stock, finish (the summary).
 
-export async function startReview(opts: { origin?: string } = {}): Promise<{ picks: string[]; posted: ChatMessage[] }> {
+export async function startReview(opts: { origin?: string; threadId?: string } = {}): Promise<{ picks: string[]; posted: ChatMessage[] }> {
   const p = await activePortfolio();
   const picks = pickHoldings(p);
   if (!picks.length) {
     const posted = await addMessages(
-      newMessage({ kind: "agent", origin: opts.origin, text: "You don't hold any stocks yet, so there's nothing to review. Research a ticker below instead." }),
+      newMessage({
+        kind: "agent",
+        origin: opts.origin,
+        threadId: opts.threadId,
+        text: "You don't hold any stocks yet, so there's nothing to review. Research a ticker instead.",
+      }),
     );
     return { picks: [], posted };
   }
@@ -122,6 +128,7 @@ export async function startReview(opts: { origin?: string } = {}): Promise<{ pic
     newMessage({
       kind: "agent",
       origin: opts.origin,
+      threadId: opts.threadId,
       text:
         `Reviewing your ${picks.length} biggest holdings: ${picks.map((h) => `**${h.ticker}** (${((h.value / total) * 100).toFixed(0)}%)`).join(", ")}. ` +
         "For each one, four analyst agents research a different angle, debate each other, and a judge gives a verdict with a confidence score. Cards appear as each finishes.",
@@ -133,7 +140,7 @@ export async function startReview(opts: { origin?: string } = {}): Promise<{ pic
 export async function researchForReview(
   ticker: string,
   place: { index: number; count: number },
-  opts: { origin?: string; onEvent?: (e: ResearchEvent) => void } = {},
+  opts: { origin?: string; threadId?: string; onEvent?: (e: ResearchEvent) => void } = {},
 ) {
   const p = await activePortfolio();
   const weight = (p.holdings.find((h) => h.ticker === ticker)?.value ?? 0) / (p.total || 1);
@@ -144,7 +151,7 @@ export async function researchForReview(
 }
 
 /** A stock counts as done when its research card was posted after `since`. */
-export async function finishReview(tickers: string[], opts: { origin?: string; since?: string } = {}): Promise<ChatMessage[]> {
+export async function finishReview(tickers: string[], opts: { origin?: string; threadId?: string; since?: string } = {}): Promise<ChatMessage[]> {
   const [p, s] = await Promise.all([activePortfolio(), readStore()]);
   const since = opts.since ?? new Date(Date.now() - REVIEW_WINDOW_MS).toISOString();
   const total = p.total || 1;
@@ -159,6 +166,7 @@ export async function finishReview(tickers: string[], opts: { origin?: string; s
     newMessage({
       kind: "agent",
       origin: opts.origin,
+      threadId: opts.threadId,
       text: `**Portfolio review done.**\n${lines.join("\n")}\n\nThe buttons on each card are suggestions. Nothing is bought or sold unless you click.`,
     }),
   );

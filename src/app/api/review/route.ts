@@ -1,5 +1,6 @@
 import { finishReview, startReview } from "@/lib/review";
 import { errorResponse } from "@/lib/http";
+import { chatId } from "@/lib/threads";
 
 const TICKER = /^[A-Z.\-]{1,10}$/;
 
@@ -9,12 +10,14 @@ const TICKER = /^[A-Z.\-]{1,10}$/;
  */
 export async function POST(req: Request) {
   try {
-    const { step, tickers } = await req.json().catch(() => ({}));
-    if (step === "start") return Response.json({ picks: (await startReview()).picks });
+    const { step, tickers, threadId } = await req.json().catch(() => ({}));
+    const chat = chatId(threadId);
+    if (chat === null) return Response.json({ error: "That chat doesn't exist." }, { status: 400 });
+    if (step === "start") return Response.json({ picks: (await startReview({ threadId: chat })).picks });
     if (step === "finish") {
       const list = Array.isArray(tickers) ? tickers.filter((t): t is string => typeof t === "string" && TICKER.test(t)).slice(0, 5) : [];
       if (!list.length) return Response.json({ error: "Nothing was reviewed." }, { status: 400 });
-      return Response.json({ messages: await finishReview(list) });
+      return Response.json({ messages: await finishReview(list, { threadId: chat }) });
     }
     return Response.json({ error: "Unknown review step." }, { status: 400 });
   } catch (e) {
