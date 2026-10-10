@@ -1,26 +1,35 @@
 {
-  "name": "atlas-tmp",
+  "name": "atlas",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "mcp": "tsx src/mcp/server.mts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "d3-force": "^3.0.0",
+    "fast-xml-parser": "^5.11.2",
     "next": "16.4.0",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "snaptrade-typescript-sdk": "^12.2.22",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
+    "@types/d3-force": "^3.0.10",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }

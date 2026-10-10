@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Atlas Deep Research for Claude",
+  "version": "0.1.0",
+  "description": "One click in Atlas opens Claude with Research mode on and the prompt filled in; you press send, and the result comes back to Atlas.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://claude.ai/*", "http://localhost/*", "http://127.0.0.1/*"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["http://localhost/*", "http://127.0.0.1/*"],
+      "js": ["atlas.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://claude.ai/*"],
+      "js": ["claude.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
