@@ -43,3 +43,6 @@ next-env.d.ts
 
 # Atlas local data
 .data/
+
+# written by `next dev`
+AGENTS.md
