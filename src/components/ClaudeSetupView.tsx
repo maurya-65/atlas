@@ -1,25 +1,11 @@
 "use client";
 
 import { useState, useSyncExternalStore, type ReactNode } from "react";
+import { useExtensionReady } from "./useExtensionReady";
 import { Badge, Button, Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle, buttonClass } from "./ui";
 
 const CODE = "rounded bg-white/[0.08] px-1.5 py-0.5 font-mono text-xs text-foreground";
 const SNAPTRADE_URL = "https://mcp.snaptrade.com/mcp";
-
-function subscribeExtension(cb: () => void) {
-  const obs = new MutationObserver(cb);
-  obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-atlas-extension"] });
-  return () => obs.disconnect();
-}
-
-/** True when the Atlas Chrome extension has attached to this tab (it sets a flag on the page). */
-export function useExtensionReady() {
-  return useSyncExternalStore(
-    subscribeExtension,
-    () => document.documentElement.dataset.atlasExtension === "ready",
-    () => false,
-  );
-}
 
 const subscribeNothing = () => () => {};
 
@@ -81,9 +67,9 @@ export default function ClaudeSetupView() {
         <CardHeader>
           <CardTitle>Deeper research in Claude</CardTitle>
           <CardDescription>
-            The “Deep research in Claude” buttons run a long research in Claude itself, on your own Claude plan. With the Chrome extension below, one
-            click opens Claude with Research on and the prompt filled in, and the finished report comes back here as a card by itself. It takes about
-            five minutes to set up.
+            The “Deep research in Claude” buttons run a long research in Claude itself, on your own Claude plan. They show up in Atlas once the Chrome
+            extension below is set up: one click then opens Claude with Research on and the prompt filled in, and the finished report comes back here as
+            a card by itself. It takes about five minutes.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -147,14 +133,6 @@ export default function ClaudeSetupView() {
           <li>Keep that tab open for about 10 minutes. A small badge in its corner shows progress.</li>
           <li>When it finishes, the card appears in your Inbox. Nothing is bought or sold unless you approve it there.</li>
         </Steps>
-        <p className="text-xs">
-          No extension? The same button still opens Claude with the prompt. Turn on Research yourself, press send, then paste Claude’s whole answer into
-          “Bring back a Claude report” in{" "}
-          <a href="#settings" className="font-medium text-foreground underline underline-offset-4">
-            Settings
-          </a>
-          .
-        </p>
       </Step>
 
       <Step n={4} title="Optional: add the Atlas research skill" status={<Badge variant="soft">Optional</Badge>}>

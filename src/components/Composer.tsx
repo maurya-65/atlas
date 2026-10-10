@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { ExternalIcon } from "./icons";
 import { cn } from "./ui";
+import { useExtensionReady } from "./useExtensionReady";
 
 type ComposerMode = "ask" | "research" | "sector" | "whatif";
 
@@ -90,7 +91,9 @@ export default function Composer({
     whatif: "Describe an event and Atlas traces how it could reach your stocks.",
   }[mode];
 
-  const claudeLink = mode === "research" || mode === "sector";
+  // The Claude hand-off only shows once the extension is set up, so it never opens a half-working flow.
+  const extensionReady = useExtensionReady();
+  const claudeLink = extensionReady && (mode === "research" || mode === "sector");
 
   return (
     <div className="mx-auto w-full max-w-3xl min-w-0">

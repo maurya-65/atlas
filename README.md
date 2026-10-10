@@ -90,7 +90,7 @@ Cards Claude creates are marked "From Claude" in the app.
 
 ## Chrome extension
 
-*Deep research in Claude* opens claude.ai with a prompt filled in; you paste the answer back under Settings and Atlas turns it into a card without an API call. The extension in `extension/` skips the copy and paste. Research mode needs a paid Claude plan (Pro or higher); the free plan does not have it. It works with Atlas on your computer or a hosted copy (add the hosted address once in the extension). The **Claude setup** tab in Atlas has the download links and the install steps (the same steps are in [extension/README.md](extension/README.md)).
+*Deep research in Claude* opens claude.ai with Research on and a prompt filled in, and the finished report comes back as a card without an API call. The button only shows once the extension in `extension/` is set up; **Bring back a Claude report** under Settings is the fallback if an import fails. Research mode needs a paid Claude plan (Pro or higher); the free plan does not have it. It works with Atlas on your computer or a hosted copy (add the hosted address once in the extension). The **Claude setup** tab in Atlas has the download links and the install steps (the same steps are in [extension/README.md](extension/README.md)).
 
 ## Claude skill
 

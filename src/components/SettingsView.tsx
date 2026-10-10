@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useExtensionReady } from "./ClaudeSetupView";
+import { useExtensionReady } from "./useExtensionReady";
 import { timeAgo } from "./format";
 import { ResetIcon } from "./icons";
 import ModeControl from "./ModeControl";
@@ -172,7 +172,7 @@ function ClaudeCard() {
         <p>
           {extensionReady
             ? "The Atlas Chrome extension is active in this tab. The button opens Claude with Research mode on and the prompt filled in; you press send and the card arrives in your Inbox by itself."
-            : "Without the Atlas Chrome extension, the button opens claude.ai with the prompt filled in. You turn on Research, press send, and paste the answer into the box on this page."}
+            : "The “Deep research in Claude” buttons show up once the Atlas Chrome extension is set up."}
         </p>
         <p>
           Install steps and the download links are on the{" "}

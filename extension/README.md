@@ -1,6 +1,6 @@
 # Atlas Deep Research (Chrome extension)
 
-One click in Atlas opens claude.ai with Research mode on and the prompt filled in. You press send, and the result comes back to Atlas as a research card by itself. Without this extension you do it all by hand: turn on Research, press send, wait, then copy and paste the answer.
+One click in Atlas opens claude.ai with Research mode on and the prompt filled in. You press send, and the result comes back to Atlas as a research card by itself. The "Deep research in Claude" buttons in Atlas only show up once this extension is set up.
 
 The research runs on your own Claude plan, so it costs Atlas nothing. The import is plain code (`src/lib/handoff.ts`), with no API call.
 
@@ -44,7 +44,7 @@ You need three things: a paid Claude plan, Atlas (on your computer or hosted), a
    - Connect SnapTrade to Claude so it reads your real holdings (steps at the end of this file).
    - Install the Atlas research skill from `claude-skill/` (see the main README). It adds detailed checklists and a fixed report format.
 
-If something does not work, see Troubleshooting below. Without the extension everything still works by hand: the link opens Claude with the prompt filled in, you turn on Research and press send, and you paste the answer into Atlas under Settings.
+If something does not work, see Troubleshooting below.
 
 After you edit any file in this folder, press the reload icon on the extension's card in `chrome://extensions`, then reload the Atlas tab.
 
@@ -62,7 +62,7 @@ After you edit any file in this folder, press the reload icon on the extension's
 10. When the same block shows up on two checks in a row, Claude has finished writing it. `background.js` hands the report to an open Atlas tab on the same address, and `atlas.js` posts it to `/api/import` from that page, so a hosted Atlas sees its own sign-in cookie. (Atlas on localhost with no open tab is posted to directly.)
 11. Atlas parses it with plain code and posts a research card. The badge turns green and links back to Atlas.
 
-**Without the extension**, the same link just opens claude.ai with the prompt filled in. Turn on Research yourself (**+** → Research), press send, wait for the report, then copy Claude's whole answer into **Bring back a Claude report** in Atlas.
+If the automatic import ever fails, copy Claude's whole answer into **Bring back a Claude report** under Settings in Atlas.
 
 Ctrl-, Cmd- and Shift-clicks are left alone, so you can still open the link in a new tab the normal way.
 

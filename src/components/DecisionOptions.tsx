@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { CardOption } from "@/lib/types";
 import { buttonClass } from "./ui";
+import { useExtensionReady } from "./useExtensionReady";
 
 /**
  * Option buttons for a decision, in one row. The recommended option is shown first (white), the others are
@@ -24,7 +25,9 @@ export default function DecisionOptions({
   const [pendingIdx, setPendingIdx] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [openedClaude, setOpenedClaude] = useState(false);
-  const indexed = (options ?? []).map((o, i) => ({ ...o, index: i }));
+  const extensionReady = useExtensionReady();
+  // "Deep research in Claude" only shows once the extension is set up.
+  const indexed = (options ?? []).map((o, i) => ({ ...o, index: i })).filter((o) => extensionReady || o.kind !== "open_claude");
   const ordered = [...indexed.filter((o) => o.recommended), ...indexed.filter((o) => !o.recommended)];
 
   async function choose(i: number) {
@@ -94,8 +97,7 @@ export default function DecisionOptions({
       {paperNote && <p className="mt-2 text-xs text-muted-foreground">{paperNote}</p>}
       {openedClaude && (
         <p className="mt-2 text-sm text-muted-foreground">
-          In Claude (Research needs a paid Claude plan): turn on <strong className="text-foreground">Research</strong>, check the prompt, and press send. When it finishes, copy the whole
-          answer and paste it into <strong className="text-foreground">Bring back a Claude report</strong> under Settings.
+          In the Claude tab, check the prompt and press send. Keep that tab open: when the research finishes (about 10 minutes), the card appears in your Inbox by itself.
         </p>
       )}
       {error && <p className="mt-2 text-sm text-live">That didn’t go through: {error}</p>}
