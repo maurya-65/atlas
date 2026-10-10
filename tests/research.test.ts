@@ -83,6 +83,7 @@ test("eight analysts search, debate once, and a judge gives one verdict", async 
   assert.equal(r.angles?.length, 8);
   assert.equal(calls.length, 17);
   assert.equal(calls.filter((c) => c.searched).length, 8, "only the analysts search the web");
+  assert.equal(calls.filter((c) => c.searched && c.system.includes("no source list")).length, 2, "two analysts plan their own searches; the other six start from the collected sources");
   assert.ok(calls[16].system.includes("You are the judge"));
 });
 

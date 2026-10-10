@@ -15,9 +15,10 @@ import {
 } from "./sources";
 import type { AgentStep, GraphEdge, GraphNode, Holding, ResearchAngle, ResearchEvent, ResearchResult, Stance } from "./types";
 
-// Deep research: eight analyst agents each start from the public sources for one angle, search the web
-// themselves to read past the titles, and write a short cited report. Then each reads the others' reports
-// and argues back (one debate round). A judge weighs the debate into a verdict with a 0-100 confidence
+// Deep research: eight analyst agents. Six start from the public sources Atlas collects for one angle (SEC
+// filings, news feeds, Federal Register), search the web to read past the titles, and write a short cited
+// report. Two are open: they get no source list and decide for themselves what to search each time. Then
+// each reads the others' reports and argues back (one debate round). A judge weighs the debate into a verdict with a 0-100 confidence
 // score. Every call is Opus at high effort; revenue growth and position size are computed in code, never
 // by the model.
 
@@ -26,6 +27,8 @@ const PER_ANGLE = 10;
 const MAX_SOURCES = 90;
 // Eight analysts search in parallel, so each gets fewer searches than a team of four would (the pages they read are most of the cost).
 const SEARCHES_PER_ANALYST = 3;
+// The two open analysts have no source list to lean on, so they get more searches.
+const SEARCHES_PER_OPEN_ANALYST = 5;
 /** Pages from its own searches each analyst may cite */
 const WEB_PER_ANALYST = 8;
 
@@ -55,6 +58,8 @@ interface AngleDef {
   name: string;
   focus: string;
   fetch: (c: Company) => Promise<SourceItem[]>;
+  /** No fixed sources: the analyst plans its own web searches */
+  open?: boolean;
 }
 
 const news = (q: string, c: Company, n: number) => googleNews(q, c.ticker, n).catch(() => [] as SourceItem[]);
@@ -95,12 +100,13 @@ const ANGLES: AngleDef[] = [
   },
   {
     name: "People & operations",
-    focus: "Strikes, unions, layoffs, leadership changes, factories and supply chain problems.",
+    focus: "Strikes, unions, layoffs, leadership changes, executives buying or selling their own shares, factories and supply chain problems.",
     fetch: async (c) =>
       (
         await Promise.all([
           news(`"${c.short}" strike OR union OR layoffs`, c, 5),
-          news(`"${c.short}" CEO OR executive OR "supply chain"`, c, 5),
+          news(`"${c.short}" CEO OR executive OR "supply chain"`, c, 4),
+          news(`"${c.short}" "insider buying" OR "insider selling"`, c, 3),
         ])
       ).flat(),
   },
@@ -128,26 +134,18 @@ const ANGLES: AngleDef[] = [
       ).flat(),
   },
   {
-    name: "Insiders & ownership",
-    focus: "Who is buying and selling: executives and directors trading their own shares, big funds adding or cutting, short sellers and activist investors.",
-    fetch: async (c) =>
-      (
-        await Promise.all([
-          news(`"${c.short}" "insider buying" OR "insider selling" OR "Form 4"`, c, 5),
-          news(`"${c.short}" "short interest" OR activist OR "institutional investors" OR "13F"`, c, 5),
-        ])
-      ).flat(),
+    name: "News scout",
+    open: true,
+    focus:
+      "What happened in the last few weeks that the fixed feeds can miss: breaking news, announcements, deals, outages, executive moves, and outside events (rates, tariffs, conflicts) that hit this company. Separate what is confirmed from rumour.",
+    fetch: async () => [],
   },
   {
-    name: "Macro & geopolitics",
-    focus: "Outside forces: interest rates, inflation, the dollar, commodity prices, tariffs, trade tensions and conflicts that move this company or its customers.",
-    fetch: async (c) =>
-      (
-        await Promise.all([
-          news(`"${c.short}" tariffs OR "interest rates" OR inflation OR currency`, c, 5),
-          news(`${c.industry ?? c.short} geopolitics OR "trade war" OR sanctions OR "commodity prices"`, c, 5),
-        ])
-      ).flat(),
+    name: "Skeptic",
+    open: true,
+    focus:
+      "The strongest honest case against owning this stock: red flags, hidden risks, contradicting reports, short-seller or critic claims, and reasons the consensus could be wrong. Find evidence the other analysts are unlikely to look for.",
+    fetch: async () => [],
   },
 ];
 
@@ -324,17 +322,18 @@ export async function researchTicker(ticker: string, ctx: ResearchContext): Prom
     return { numbers, web };
   };
 
+  const fixedCount = ANGLES.filter((a) => !a.open).length;
   say({
     agent: "Atlas",
     phase: "status",
-    text: `Found ${all.length} public sources. Handing them to ${ANGLES.length} analysts, one angle each. They can search the web for more.`,
+    text: `Found ${all.length} public sources. Handing them to ${fixedCount} analysts, one angle each; ${ANGLES.length - fixedCount} more search the news on their own. All of them can search the web.`,
     sources: all.map((s, i) => ({ n: i + 1, title: s.title, url: s.url, publisher: s.publisher })),
   });
   ANGLES.forEach((a, i) =>
     say({
       agent: a.name,
       phase: "reading",
-      text: `Reading ${angleSources[i].length} sources and searching the web. My angle: ${a.focus}`,
+      text: a.open ? `No fixed sources for me: I'll plan my own searches. My angle: ${a.focus}` : `Reading ${angleSources[i].length} sources and searching the web. My angle: ${a.focus}`,
       sources: angleSources[i].map(({ n, s }) => ({ n, title: s.title, url: s.url, publisher: s.publisher })),
     }),
   );
@@ -364,16 +363,25 @@ export async function researchTicker(ticker: string, ctx: ResearchContext): Prom
       const src = angleSources[i];
       try {
         const { output, pages, searches } = await structuredWithSearch({
-          system:
-            `You are the "${a.name}" analyst on a research team. Your angle: ${a.focus} ` +
-            `You are given numbered sources (titles only) and revenue data. Search the web, up to ${SEARCHES_PER_ANALYST} times, to read what actually ` +
-            "happened behind the titles that matter and to fill gaps in your angle. Prefer recent, first-hand pages: company releases, filings, " +
-            "regulators, established news. Base every claim on the numbered sources, the revenue data or pages your searches returned, never on memory. " +
-            "Cite numbered sources as [n]. List the web pages you rely on in webSources and cite them as [W1], [W2] by their position in that list. " +
-            `If the evidence is still thin or off-topic, say so and pick not_enough_info with a low score. ${PLAIN}`,
-          prompt: `${header}\n\nYour sources:\n${numbered(src) || "(none found)"}\n\nResearch your angle, then write your short report, key points, stance and confidence score.`,
+          system: a.open
+            ? `You are the "${a.name}" analyst on a research team. Your angle: ${a.focus} ` +
+              `You get no source list: you find your own. Search the web, up to ${SEARCHES_PER_OPEN_ANALYST} times. Before each search, think about what is still ` +
+              "unknown and what would move this stock right now, using the company, its industry, the user's position and interests. Use specific queries " +
+              "(names, events, dates, rivals, regulators), not just the ticker. Follow up a lead with a sharper query instead of repeating one, and ignore stale " +
+              "or off-topic pages. Prefer first-hand pages from the last 30 days: company releases, filings, regulators, established news. " +
+              "Base every claim on pages your searches returned, never on memory. List the pages you rely on in webSources and cite them as [W1], [W2] by " +
+              `their position in that list. If you find nothing solid, say so and pick not_enough_info with a low score. ${PLAIN}`
+            : `You are the "${a.name}" analyst on a research team. Your angle: ${a.focus} ` +
+              `You are given numbered sources (titles only) and revenue data. Search the web, up to ${SEARCHES_PER_ANALYST} times, to read what actually ` +
+              "happened behind the titles that matter and to fill gaps in your angle. Prefer recent, first-hand pages: company releases, filings, " +
+              "regulators, established news. Base every claim on the numbered sources, the revenue data or pages your searches returned, never on memory. " +
+              "Cite numbered sources as [n]. List the web pages you rely on in webSources and cite them as [W1], [W2] by their position in that list. " +
+              `If the evidence is still thin or off-topic, say so and pick not_enough_info with a low score. ${PLAIN}`,
+          prompt: a.open
+            ? `${header}\n\nYou have no numbered sources. Search for your angle yourself, then write your short report, key points, stance and confidence score.`
+            : `${header}\n\nYour sources:\n${numbered(src) || "(none found)"}\n\nResearch your angle, then write your short report, key points, stance and confidence score.`,
           schema: AnalystSchema,
-          maxSearches: SEARCHES_PER_ANALYST,
+          maxSearches: a.open ? SEARCHES_PER_OPEN_ANALYST : SEARCHES_PER_ANALYST,
           maxTokens: 24000,
           effort: EFFORT,
         });

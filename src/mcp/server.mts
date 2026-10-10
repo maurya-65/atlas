@@ -113,7 +113,7 @@ server.registerTool(
   {
     title: "Deep research on a company",
     description:
-      "Deep research on one stock from public sources (SEC filings, quarterly revenue, news, Federal Register). Eight analyst agents each research one angle (business & market, financial health, valuation & expectations, industry & competition, regulation & legal, people & operations, insiders & ownership, macro & geopolitics), search the web themselves for more, and write a short cited report, then debate each other; a judge gives the verdict (buy more / sell some / hold), a 0-100 confidence score with its reason, and points for and against. Citations [n] refer to sources[n-1]. The full card with buy/sell buttons is posted to the Atlas app. Takes a few minutes.",
+      "Deep research on one stock from public sources (SEC filings, quarterly revenue, news, Federal Register). Eight analyst agents each research one angle: six work from the collected sources (business & market, financial health, valuation & expectations, industry & competition, regulation & legal, people & operations) and two search the news on their own (a news scout and a skeptic). They search the web for more, and write a short cited report, then debate each other; a judge gives the verdict (buy more / sell some / hold), a 0-100 confidence score with its reason, and points for and against. Citations [n] refer to sources[n-1]. The full card with buy/sell buttons is posted to the Atlas app. Takes a few minutes.",
     inputSchema: { ticker: z.string().min(1).max(10) },
   },
   async ({ ticker }) =>
