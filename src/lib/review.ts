@@ -10,6 +10,8 @@ import type { CardOption, ChatMessage, Holding, Portfolio, ResearchEvent, Resear
 // several Opus agents in parallel, and running stocks side by side would hit API rate limits).
 
 const REVIEW_COUNT = 3;
+/** How far back the summary looks for a stock's research card when the caller doesn't say when the review began. */
+const REVIEW_WINDOW_MS = 30 * 60_000;
 const SUGGESTED_TRADE_DOLLARS = 25;
 
 const VERDICT: Record<ResearchResult["stance"], string> = {
@@ -99,65 +101,84 @@ export async function importClaudeReport(pasted: string, expectedTicker?: string
 }
 
 function pickHoldings(p: Portfolio) {
-  const ok = [...p.holdings].filter((h) => h.value > 0 && isResearchableStock(h.ticker));
+  const ok = [...p.holdings].filter((h) => h.value > 0 && isResearchableStock(h.ticker, h.kind));
   return ok.sort((a, b) => b.value - a.value).slice(0, REVIEW_COUNT);
 }
 
-/**
- * Deep-research the biggest holdings, posting each card as soon as it's ready (the app polls while busy),
- * then a short summary. Returns everything it posted.
- */
-export async function reviewPortfolio(opts: { origin?: string; onEvent?: (e: ResearchEvent) => void } = {}): Promise<ChatMessage[]> {
+// A review is three steps so the app can make one request per stock (a host may cut a single request off
+// after a few minutes): start (say what will be reviewed), one research per stock, finish (the summary).
+
+export async function startReview(opts: { origin?: string } = {}): Promise<{ picks: string[]; posted: ChatMessage[] }> {
   const p = await activePortfolio();
   const picks = pickHoldings(p);
   if (!picks.length) {
-    return addMessages(
+    const posted = await addMessages(
       newMessage({ kind: "agent", origin: opts.origin, text: "You don't hold any stocks yet, so there's nothing to review. Research a ticker below instead." }),
     );
+    return { picks: [], posted };
   }
   const total = p.total || 1;
-  const posted: ChatMessage[] = [];
-  posted.push(
-    ...(await addMessages(
-      newMessage({
-        kind: "agent",
-        origin: opts.origin,
-        text:
-          `Reviewing your ${picks.length} biggest holdings: ${picks.map((h) => `**${h.ticker}** (${((h.value / total) * 100).toFixed(0)}%)`).join(", ")}. ` +
-          "For each one, four analyst agents research a different angle, debate each other, and a judge gives a verdict with a confidence score. Cards appear as each finishes.",
-      }),
-    )),
+  const posted = await addMessages(
+    newMessage({
+      kind: "agent",
+      origin: opts.origin,
+      text:
+        `Reviewing your ${picks.length} biggest holdings: ${picks.map((h) => `**${h.ticker}** (${((h.value / total) * 100).toFixed(0)}%)`).join(", ")}. ` +
+        "For each one, four analyst agents research a different angle, debate each other, and a judge gives a verdict with a confidence score. Cards appear as each finishes.",
+    }),
   );
+  return { picks: picks.map((h) => h.ticker), posted };
+}
 
-  const results: { ticker: string; weight: number; r: ResearchResult | null }[] = [];
-  for (const [i, h] of picks.entries()) {
-    const weight = h.value / total;
+export async function researchForReview(
+  ticker: string,
+  place: { index: number; count: number },
+  opts: { origin?: string; onEvent?: (e: ResearchEvent) => void } = {},
+) {
+  const p = await activePortfolio();
+  const weight = (p.holdings.find((h) => h.ticker === ticker)?.value ?? 0) / (p.total || 1);
+  return researchAndPost(ticker, {
+    ...opts,
+    text: `**Portfolio review ${place.index + 1}/${place.count}:** ${ticker} is ${(weight * 100).toFixed(1)}% of your portfolio${place.index === 0 ? ", your biggest position" : ""}.`,
+  });
+}
+
+/** A stock counts as done when its research card was posted after `since`. */
+export async function finishReview(tickers: string[], opts: { origin?: string; since?: string } = {}): Promise<ChatMessage[]> {
+  const [p, s] = await Promise.all([activePortfolio(), readStore()]);
+  const since = opts.since ?? new Date(Date.now() - REVIEW_WINDOW_MS).toISOString();
+  const total = p.total || 1;
+  const lines = tickers.map((ticker) => {
+    const r = [...s.messages].reverse().find((m) => m.kind === "research" && m.research?.ticker === ticker && m.createdAt >= since)?.research;
+    const weight = (p.holdings.find((h) => h.ticker === ticker)?.value ?? 0) / total;
+    return r
+      ? `- **${ticker}** (${(weight * 100).toFixed(0)}% of portfolio): ${VERDICT[r.stance]}, confidence **${r.confidenceScore ?? "?"}/100**`
+      : `- **${ticker}**: research didn't finish. Try it again on its own.`;
+  });
+  return addMessages(
+    newMessage({
+      kind: "agent",
+      origin: opts.origin,
+      text: `**Portfolio review done.**\n${lines.join("\n")}\n\nThe buttons on each card are suggestions. Nothing is bought or sold unless you click.`,
+    }),
+  );
+}
+
+/**
+ * The whole review in one call, for callers with no time limit (the MCP tool): each card is posted as soon
+ * as it's ready, then a short summary. Returns everything it posted.
+ */
+export async function reviewPortfolio(opts: { origin?: string; onEvent?: (e: ResearchEvent) => void } = {}): Promise<ChatMessage[]> {
+  const since = new Date().toISOString();
+  const { picks, posted } = await startReview(opts);
+  if (!picks.length) return posted;
+  for (const [index, ticker] of picks.entries()) {
     try {
-      const m = await researchAndPost(h.ticker, {
-        origin: opts.origin,
-        onEvent: opts.onEvent,
-        text: `**Portfolio review ${i + 1}/${picks.length}:** ${h.ticker} is ${(weight * 100).toFixed(1)}% of your portfolio${i === 0 ? ", your biggest position" : ""}.`,
-      });
-      posted.push(m);
-      results.push({ ticker: h.ticker, weight, r: m.research ?? null });
+      posted.push(await researchForReview(ticker, { index, count: picks.length }, opts));
     } catch {
-      results.push({ ticker: h.ticker, weight, r: null });
+      // The summary says this one didn't finish.
     }
   }
-
-  const lines = results.map(({ ticker, weight, r }) =>
-    r
-      ? `- **${ticker}** (${(weight * 100).toFixed(0)}% of portfolio): ${VERDICT[r.stance]}, confidence **${r.confidenceScore ?? "?"}/100**`
-      : `- **${ticker}**: research didn't finish. Try it again on its own.`,
-  );
-  posted.push(
-    ...(await addMessages(
-      newMessage({
-        kind: "agent",
-        origin: opts.origin,
-        text: `**Portfolio review done.**\n${lines.join("\n")}\n\nThe buttons on each card are suggestions. Nothing is bought or sold unless you click.`,
-      }),
-    )),
-  );
+  posted.push(...(await finishReview(picks, { origin: opts.origin, since })));
   return posted;
 }

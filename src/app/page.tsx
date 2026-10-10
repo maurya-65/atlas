@@ -233,8 +233,26 @@ export default function Home() {
   const research = (ticker: string) =>
     streamResearch(`${ticker}: 4 analyst agents are reading SEC filings, news and government notices…`, "/api/research", { ticker });
 
+  // One request per stock, so a long review never depends on a single connection staying open for minutes.
   const review = () =>
-    streamResearch("Reviewing your biggest holdings one by one…", "/api/review", {});
+    run("Reviewing your biggest holdings one by one…", async () => {
+      const { picks } = await api<{ picks: string[] }>("/api/review", { step: "start" });
+      setLiveEvents([]);
+      try {
+        for (const [i, ticker] of picks.entries()) {
+          setBusy(`Reviewing ${ticker} (${i + 1} of ${picks.length})…`);
+          try {
+            await streamApi<ResearchEvent>("/api/research", { ticker, review: { index: i, count: picks.length } }, (e) => setLiveEvents((prev) => [...prev, e]));
+          } catch {
+            // One stock failing doesn't stop the review; the summary says which one didn't finish.
+          }
+          await refresh();
+        }
+      } finally {
+        setLiveEvents([]);
+      }
+      if (picks.length) await api("/api/review", { step: "finish", tickers: picks });
+    });
 
   const runDaily = () =>
     streamResearch("Daily run: checking your portfolio and researching…", "/api/daily/run", {});
