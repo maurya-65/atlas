@@ -40,7 +40,7 @@ function SidebarBody({
   return (
     <div data-slot="sidebar-inner" className="flex size-full flex-col text-sidebar-foreground">
       <div data-slot="sidebar-header" className="flex items-center justify-between gap-2 p-2">
-        <a href={chatHref} onClick={onNavigate} className="flex h-12 min-w-0 items-center gap-2.5 rounded-xl p-2">
+        <a href={viewHref("overview")} onClick={onNavigate} className="flex h-12 min-w-0 items-center gap-2.5 rounded-xl p-2">
           <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-full bg-white text-black [&>svg]:size-5">
             <GlobeIcon />
           </span>

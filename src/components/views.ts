@@ -1,8 +1,15 @@
 /** The sections of the single Atlas page. The URL hash picks one (for example /#inbox); a chat is /#chat/<id>. */
 export type View = "chat" | "inbox" | "overview" | "daily" | "rules" | "claude" | "settings";
 
-/** In sidebar order. The landing view is a new chat (see viewFromHash). */
+/** In sidebar order. The landing view is the Portfolio (see viewFromHash). */
 export const VIEWS: { id: View; label: string; title: string; description: string; group: "agent" | "setup" }[] = [
+  {
+    id: "overview",
+    label: "Portfolio",
+    title: "Portfolio",
+    description: "What you own, in plain numbers.",
+    group: "agent",
+  },
   {
     id: "chat",
     label: "Chat",
@@ -15,13 +22,6 @@ export const VIEWS: { id: View; label: string; title: string; description: strin
     label: "Inbox",
     title: "Inbox",
     description: "What Atlas found on its own, and trades waiting for your yes or no.",
-    group: "agent",
-  },
-  {
-    id: "overview",
-    label: "Portfolio",
-    title: "Portfolio",
-    description: "What you own, in plain numbers.",
     group: "agent",
   },
   {
@@ -56,7 +56,7 @@ export const VIEWS: { id: View; label: string; title: string; description: strin
 
 export function viewFromHash(hash: string): View {
   const id = hash.replace(/^#/, "").split("/")[0];
-  return VIEWS.find((v) => v.id === id)?.id ?? "chat";
+  return VIEWS.find((v) => v.id === id)?.id ?? "overview";
 }
 
 /** The chat a hash like #chat/<id> points at. */

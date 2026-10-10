@@ -125,7 +125,8 @@ export default function Home() {
   }, [busy, dailyRunning, refresh]);
 
   const chat = state?.messages.filter((m) => m.threadId && m.threadId === activeChat) ?? [];
-  const inbox = state?.messages.filter((m) => !m.threadId) ?? [];
+  // A "user" message is always a chat turn (older ones were saved before chats had ids), never something Atlas found.
+  const inbox = state?.messages.filter((m) => !m.threadId && m.kind !== "user") ?? [];
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -315,7 +316,7 @@ export default function Home() {
     if (busy) return;
     await mutate("/api/reset", {});
     setNotice(null);
-    goTo("chat");
+    goTo("overview");
   };
 
   if (!state) {

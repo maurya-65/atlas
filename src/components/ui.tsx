@@ -267,7 +267,7 @@ export function StatTile({
       </CardContent>
       <CardContent>
         <div className="truncate text-3xl font-semibold tracking-tight tabular-nums">{value}</div>
-        <div className="mt-1.5 line-clamp-2 min-h-10 text-sm text-muted-foreground">{children}</div>
+        <div className="mt-1.5 min-h-10 text-sm text-muted-foreground">{children}</div>
       </CardContent>
     </Card>
   );
