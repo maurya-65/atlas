@@ -92,6 +92,12 @@ Cards Claude creates are marked "From Claude" in the app.
 
 *Deep research in Claude* opens claude.ai with a prompt filled in; you paste the answer back under Settings and Atlas turns it into a card without an API call. The extension in `extension/` skips the copy and paste. See [extension/README.md](extension/README.md).
 
+## Claude skill
+
+`claude-skill/atlas-stock-research/` is a Claude skill for the Deep Research hand-off. It carries the method (five analyst passes, a debate, a judge with a confidence rubric), the checklists each pass works from, a fixed report format, and a script that checks the `ATLAS_RESULT` block the way Atlas parses it.
+
+To install it, zip the folder so that `atlas-stock-research/` is at the top of the zip, then upload it in Claude under Settings → Customize → Skills. Code execution has to be on. Anthropic's docs don't say whether Research mode loads skills, so the prompt Atlas sends also names the skill and carries the report outline, and it works without the skill installed.
+
 ## Deploy to Vercel
 
 1. Import the repository.
@@ -127,3 +133,4 @@ The tests cover the parts where a mistake costs money or leaks access: trade exe
 - `src/lib/store.ts`: state, as a file or one Redis key
 - `src/proxy.ts`, `src/lib/auth.ts`: sign-in and write checks
 - `src/mcp/server.mts`: MCP server
+- `claude-skill/`: the Claude skill for Deep Research

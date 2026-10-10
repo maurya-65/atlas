@@ -48,10 +48,13 @@ export function buildClaudePrompt(c: HandoffContext): string {
   }
   lines.push(
     "",
+    "If you have my “Atlas stock research” skill, follow it for the method, the report format and the final block. If not, follow the steps below.",
+    "",
     "How to research:",
-    "1. Work as 5 analysts, each on one angle: Business & market (revenue, profits, guidance, what the latest filings actually say), Regulation & legal, Industry & competition, People & operations, and a Skeptic who builds the strongest case against the others.",
+    "1. Go through 5 analyst passes, one angle each: Business & market (revenue, profits, guidance, what the latest filings actually say), Regulation & legal, Industry & competition, People & operations, and a Skeptic who builds the strongest case against the others.",
     "2. Then a debate: each analyst challenges the weakest claim of another, with evidence, and says if anything changed their mind.",
     "3. A judge gives the verdict for MY position: buy more, sell some, or hold. Give a confidence score from 0 to 100 and say why.",
+    "4. Write the report with these sections in order: Bottom line, For my position, What changed recently, Business and numbers (a table), What the market expects, Bull and bear cases, Risks ranked, The other angles, Where the analysts disagreed, Dates to watch, What you could not verify, Glossary, Sources. Put a date and a source number on every figure.",
     "If you have the SnapTrade connector, first use it to read my actual holdings and use those numbers for my position.",
     "Write for someone with zero finance knowledge: plain words, short sections, and a link for every claim. Public information only. I make my own decisions; this is research, not personal financial advice.",
     "",

@@ -1,0 +1,31 @@
+{
+  "ticker": "EXMP",
+  "verdict": "hold_and_watch",
+  "confidence": 62,
+  "summary": "Sales are growing and the company is profitable, but the stock already prices in several more years of fast growth, and one large lawsuit is unresolved [1][2]. The evidence supports holding what you own and waiting for the ruling rather than adding now [3].",
+  "bull": [
+    "Revenue grew faster than the year before for the third quarter in a row [1].",
+    "The company makes more cash than its reported profit, which is a healthy sign [1]."
+  ],
+  "bear": [
+    "At about 40 times next year's earnings the price leaves little room for a miss [2].",
+    "A lawsuit that could cost up to a tenth of a year's sales has no ruling date yet [3]."
+  ],
+  "angles": [
+    { "name": "Business & market", "stance": "hold_and_watch", "score": 62, "summary": "Growth and cash flow are strong, but the valuation already assumes it continues [1][2]." },
+    { "name": "Regulation & legal", "stance": "hold_and_watch", "score": 50, "summary": "One open lawsuit is the main unknown. The company disclosed it in its annual report [3]." },
+    { "name": "Industry & competition", "stance": "consider_buying", "score": 60, "summary": "Demand in the industry is growing and two rivals report weaker growth [4]." },
+    { "name": "People & operations", "stance": "hold_and_watch", "score": 55, "summary": "No leadership changes in the last year. Insiders sold only under pre-arranged plans [5]." },
+    { "name": "Skeptic", "stance": "hold_and_watch", "score": 58, "summary": "The strongest case against is the price, not the business [2]." }
+  ],
+  "agreements": ["The business itself is healthy and growing."],
+  "disagreements": ["Business & market and the Skeptic differ on whether the current price is too high."],
+  "whatWouldChangeMyMind": "A ruling in the lawsuit, or growth falling below the pace the price assumes.",
+  "sources": [
+    { "title": "Quarterly report (10-Q) for the latest quarter", "url": "https://example.com/filings/10-q" },
+    { "title": "Valuation data against peers", "url": "https://example.com/data/valuation" },
+    { "title": "Annual report (10-K), legal proceedings", "url": "https://example.com/filings/10-k" },
+    { "title": "Rival company results", "url": "https://example.com/rival/results" },
+    { "title": "Insider transactions (Form 4)", "url": "https://example.com/filings/form-4" }
+  ]
+}
