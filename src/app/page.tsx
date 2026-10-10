@@ -339,6 +339,10 @@ export default function Home() {
     onSelectAccount: (accountId) => mutate("/api/account", { accountId }),
     onSwitchMode: switchMode,
     onReset: reset,
+    onSignOut: async () => {
+      await api("/api/logout", {}).catch(() => undefined);
+      window.location.replace("/login");
+    },
   };
 
   const BANNER = "glass flex items-start justify-between gap-3 rounded-2xl px-4 py-2.5 text-sm";
@@ -467,7 +471,7 @@ export default function Home() {
                 canReview={Boolean(state.portfolio?.holdings.length)}
                 claudeLinkFor={claudeLinkFor}
                 claudeSectorLinkFor={claudeSectorLinkFor}
-                tickers={(state.portfolio?.holdings ?? []).filter((h) => isResearchableStock(h.ticker)).sort((a, b) => b.value - a.value).slice(0, 3).map((h) => h.ticker)}
+                tickers={(state.portfolio?.holdings ?? []).filter((h) => isResearchableStock(h.ticker, h.kind)).sort((a, b) => b.value - a.value).slice(0, 3).map((h) => h.ticker)}
                 busy={isBusy}
                 inputRef={composerRef}
               />

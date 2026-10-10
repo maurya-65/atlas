@@ -9,6 +9,8 @@ export async function POST(req: Request) {
   if (s.mode === mode) return Response.json({ ok: true });
 
   if (mode === "live") {
+    // Real orders from a copy that anyone with one password can reach are not worth the risk.
+    if (process.env.VERCEL) return Response.json({ error: "Live mode only works when Atlas runs on your own computer." }, { status: 400 });
     if (confirm !== "LIVE") return Response.json({ error: "Type LIVE to confirm you want to use real money." }, { status: 400 });
     try {
       const real = await realPortfolio();

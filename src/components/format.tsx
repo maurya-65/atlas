@@ -16,6 +16,12 @@ export interface AppState {
   daily?: DailyState;
   /** Why the brokerage portfolio couldn't be loaded, in plain words (sent by /api/state when it fails) */
   portfolioError?: string | null;
+  passwordProtected?: boolean;
+}
+
+/** The session ran out (or the password changed): the only useful place to be is the sign-in page. */
+function signInAgain(res: Response) {
+  if (res.status === 401 && typeof window !== "undefined" && window.location.pathname !== "/login") window.location.replace("/login");
 }
 
 export async function api<T = unknown>(path: string, body?: unknown): Promise<T> {
@@ -31,6 +37,7 @@ export async function api<T = unknown>(path: string, body?: unknown): Promise<T>
   } catch {
     // non-JSON response
   }
+  signInAgain(res);
   if (!res.ok) {
     const msg = (data as { error?: string } | null)?.error ?? `Something went wrong (status ${res.status}).`;
     throw new Error(msg);
@@ -49,6 +56,7 @@ export async function streamApi<E, T = unknown>(path: string, body: unknown, onE
     body: JSON.stringify(body),
     cache: "no-store",
   });
+  signInAgain(res);
   if (!res.ok || !res.body) {
     const data = (await res.json().catch(() => null)) as { error?: string } | null;
     throw new Error(data?.error ?? `Something went wrong (status ${res.status}).`);

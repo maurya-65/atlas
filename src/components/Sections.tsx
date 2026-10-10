@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
-import type { ChatMessage } from "@/lib/types";
+import { isResearchableStock, type ChatMessage } from "@/lib/types";
 import DailyBriefCard, { friendlyTime } from "./DailyBriefCard";
 import DailyPanel from "./DailyPanel";
 import { type AppState, money, pct, signedPct, timeAgo } from "./format";
@@ -48,6 +48,7 @@ export interface ViewProps {
   onSwitchMode: SwitchMode;
   /** Clear the conversation and start the demo over */
   onReset: () => void;
+  onSignOut: () => void;
 }
 
 const LINK = "font-medium text-foreground underline decoration-white/25 underline-offset-4 hover:decoration-white";
@@ -253,9 +254,11 @@ export function OverviewView({ state, busy, onResearch, onScan, onReview }: View
                     </Td>
                     {!sample && (
                       <Td className="text-right">
-                        <Button variant="outline" size="sm" onClick={() => onResearch(h.ticker)} disabled={busy} title={`Research ${h.name || h.ticker}`}>
-                          Research<span className="sr-only"> {h.ticker}</span>
-                        </Button>
+                        {isResearchableStock(h.ticker, h.kind) && (
+                          <Button variant="outline" size="sm" onClick={() => onResearch(h.ticker)} disabled={busy} title={`Research ${h.name || h.ticker}`}>
+                            Research<span className="sr-only"> {h.ticker}</span>
+                          </Button>
+                        )}
                       </Td>
                     )}
                   </Tr>
@@ -553,7 +556,7 @@ function connectionWords(state: AppState): { title: string; detail: string } {
 }
 
 /** Money mode, brokerage status and "Reset demo" as compact rows (these used to sit in the sidebar). */
-function SettingsCard({ state, busy, onSwitchMode, onReset }: Pick<ViewProps, "state" | "busy" | "onSwitchMode" | "onReset">) {
+function SettingsCard({ state, busy, onSwitchMode, onReset, onSignOut }: Pick<ViewProps, "state" | "busy" | "onSwitchMode" | "onReset" | "onSignOut">) {
   const conn = connectionWords(state);
   return (
     <Card className="lg:col-span-2 xl:col-span-3">
@@ -582,6 +585,17 @@ function SettingsCard({ state, busy, onSwitchMode, onReset }: Pick<ViewProps, "s
             Reset conversation
           </Button>
         </div>
+        {state.passwordProtected && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
+            <div className="min-w-0 flex-1">
+              <div className="font-medium">Sign out</div>
+              <p className="mt-0.5 text-xs text-muted-foreground">Atlas asks for the password again on this device.</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={onSignOut}>
+              Sign out
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -727,7 +741,7 @@ export function ConnectionsView(props: ViewProps) {
   );
   return (
     <div className="grid items-start gap-4 sm:gap-5 lg:grid-cols-2 xl:grid-cols-3">
-      <SettingsCard state={props.state} busy={props.busy} onSwitchMode={props.onSwitchMode} onReset={props.onReset} />
+      <SettingsCard state={props.state} busy={props.busy} onSwitchMode={props.onSwitchMode} onReset={props.onReset} onSignOut={props.onSignOut} />
       <AccountCard state={props.state} onSelectAccount={props.onSelectAccount} />
       <ImportCard onImport={props.onImport} busy={props.busy} />
       <Card>

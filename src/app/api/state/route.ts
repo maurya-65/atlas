@@ -3,6 +3,7 @@ import { activePortfolio, portfolioReadError } from "@/lib/portfolio";
 import { listAccounts, snaptradeConfigured, snaptradeErrorText } from "@/lib/snaptrade";
 import { LIVE_LIMITS, liveSpentToday } from "@/lib/trading";
 import { dailyState } from "@/lib/daily";
+import { atlasPassword } from "@/lib/auth";
 import type { Portfolio } from "@/lib/types";
 
 export async function GET() {
@@ -40,5 +41,6 @@ export async function GET() {
     limits: { ...LIVE_LIMITS, usedToday: await liveSpentToday() },
     lastScanAt: s.lastScanAt,
     daily: await dailyState(),
+    passwordProtected: Boolean(atlasPassword()),
   });
 }
