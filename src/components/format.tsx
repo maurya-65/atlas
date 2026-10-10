@@ -5,6 +5,8 @@ export interface AppState {
   mode: Mode;
   interests: string[];
   rules: Rule[];
+  /** What each rule finds in the portfolio right now; no entries = fine */
+  ruleStatus: { id: string; hits: string[] }[];
   threads: ChatThread[];
   messages: ChatMessage[];
   portfolio: Portfolio | null;

@@ -1,7 +1,9 @@
-import "./setup";
+import { post } from "./setup";
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { POST as rulesRoute } from "../src/app/api/rules/route";
 import { evaluateRules } from "../src/lib/rules";
+import { readStore } from "../src/lib/store";
 import type { Holding, Portfolio, Rule } from "../src/lib/types";
 
 const holding = (ticker: string, value: number, pnlPct: number | null = 0, kind: string | null = null): Holding => ({
@@ -78,4 +80,19 @@ test("funds and crypto never get a Research button", () => {
 test("an empty portfolio trips nothing", () => {
   const all: Rule[] = [rule({ kind: "concentration", threshold: 25 }), rule({ kind: "drawdown", threshold: 10 }), rule({ kind: "idle_cash", threshold: 10 })];
   assert.deepEqual(evaluateRules(portfolio([], 0), all), []);
+});
+
+test("rules can be added from the app, with limits that make sense", async () => {
+  const add = (rule: object) => rulesRoute(post("/api/rules", { action: "add", ...rule }));
+  assert.equal((await add({ kind: "concentration", threshold: 30 })).status, 200);
+  assert.equal((await add({ kind: "price_below", threshold: 200, ticker: "tsla" })).status, 200);
+  const made = (await readStore()).rules.slice(-2);
+  assert.deepEqual(made.map((r) => r.text), ["Tell me if any single stock grows past 30% of my portfolio.", "Tell me if TSLA drops below $200."]);
+  assert.equal(made[1].ticker, "TSLA");
+
+  assert.equal((await add({ kind: "concentration", threshold: 0 })).status, 400);
+  assert.equal((await add({ kind: "drawdown", threshold: 150 })).status, 400);
+  assert.equal((await add({ kind: "price_above", threshold: 50 })).status, 400, "a price rule needs a ticker");
+  assert.equal((await add({ kind: "price_above", threshold: 50, ticker: "not a ticker" })).status, 400);
+  assert.equal((await add({ kind: "news_watch", threshold: 5 })).status, 400);
 });

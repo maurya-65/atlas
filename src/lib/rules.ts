@@ -13,6 +13,12 @@ export interface RuleHit {
   message: ChatMessage;
 }
 
+/** For each rule, what it finds in the portfolio right now (empty = fine). Shown on the Rules page. */
+export function ruleStatus(p: Portfolio | null, rules: Rule[]): { id: string; hits: string[] }[] {
+  const hits = p ? evaluateRules(p, rules) : [];
+  return rules.map((r) => ({ id: r.id, hits: hits.filter((h) => h.rule.id === r.id).map((h) => h.message.title ?? "") }));
+}
+
 /** "Research X" only for company stocks; funds and crypto have no filings for the analysts to read. */
 function researchOption(h: Holding, recommended: boolean): CardOption[] {
   if (!isResearchableStock(h.ticker, h.kind)) return [];
@@ -95,6 +101,7 @@ export function evaluateRules(p: Portfolio, rules: Rule[]): RuleHit[] {
           hits.push(
             hit(rule, `cash:${Math.round(share * 20)}`, {
               kind: "thought",
+              title: `${pct(share)} of your portfolio is sitting in cash`,
               text: `${pct(share)} of your portfolio (${usd(p.cash)}) is sitting in cash, above the ${rule.threshold}% you said to flag. That's not a problem by itself; it's just money that isn't invested. If you want, tell me an industry you're curious about and I'll research options.`,
             }),
           );

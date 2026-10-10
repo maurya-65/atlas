@@ -348,6 +348,24 @@ export interface ScenarioResult {
   generatedAt: string;
 }
 
+/** A rule as a sentence, for rules made in the app. */
+export function ruleText(kind: RuleKind, threshold: number, ticker?: string): string {
+  switch (kind) {
+    case "concentration":
+      return `Tell me if any single stock grows past ${threshold}% of my portfolio.`;
+    case "drawdown":
+      return `Tell me if any stock falls ${threshold}% or more below what I paid for it.`;
+    case "idle_cash":
+      return `Tell me if more than ${threshold}% of my portfolio is sitting in cash.`;
+    case "price_below":
+      return `Tell me if ${ticker} drops below $${threshold}.`;
+    case "price_above":
+      return `Tell me if ${ticker} goes above $${threshold}.`;
+    case "news_watch":
+      return "";
+  }
+}
+
 /** Crypto and stablecoin symbols SnapTrade can return. These have no SEC filings, so stock research skips them. */
 const NON_STOCK = new Set(["BTC", "ETH", "SOL", "USDC", "USDT", "DAI", "XRP", "ADA", "DOGE", "LTC", "BNB", "AVAX", "DOT", "MATIC", "LINK", "SHIB", "BCH", "XLM"]);
 /** SPY and similar index funds have no company filings of their own either. */
