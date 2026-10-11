@@ -20,7 +20,7 @@ export default function PerformanceTab({ data }: { data: PaperData | null }) {
   const empty = performance.trades.length === 0;
 
   return (
-    <div className="grid gap-4 sm:gap-5">
+    <div className="grid grid-cols-1 gap-4 sm:gap-5">
       <Card>
         <CardHeader>
           <CardTitle>What your approved suggestions did</CardTitle>

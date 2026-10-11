@@ -35,13 +35,13 @@ export default function HomeView({ atlas }: ViewProps) {
         }
       />
       <GettingStarted state={state} />
-      <div className="grid items-start gap-4 sm:gap-5 xl:grid-cols-3">
-        <div className="grid gap-4 sm:gap-5 xl:col-span-2">
+      <div className="grid grid-cols-1 items-start gap-4 sm:gap-5 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:gap-5 xl:col-span-2">
           <NeedsYou atlas={atlas} />
           <SinceLastCheck atlas={atlas} />
           <HomeSnapshot state={state} />
         </div>
-        <div className="grid gap-4 sm:gap-5">
+        <div className="grid grid-cols-1 gap-4 sm:gap-5">
           <RunningNow atlas={atlas} />
           <RecentActivity atlas={atlas} />
         </div>

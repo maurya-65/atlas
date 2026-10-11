@@ -49,7 +49,7 @@ export default function SettingsView({ atlas, route }: ViewProps) {
           </nav>
         }
       />
-      <div className="grid items-start gap-4 sm:gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-4 sm:gap-5 lg:grid-cols-2">
         <BrokerageSection atlas={atlas} />
         <SafetyCard atlas={atlas} />
         <MemoryCard atlas={atlas} />

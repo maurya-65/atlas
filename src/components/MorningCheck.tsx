@@ -44,7 +44,7 @@ export default function MorningCheck({ atlas }: Pick<ViewProps, "atlas">) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,22rem)_1fr]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,22rem)_1fr]">
           <div className="space-y-4">
             <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2.5">
               <span className="font-medium">Run every day</span>

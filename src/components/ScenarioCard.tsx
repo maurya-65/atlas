@@ -150,7 +150,7 @@ export default function ScenarioCard({
           {s.channels.length > 0 && (
             <div>
               <h4 className={SUB}>Ways it could spread</h4>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {s.channels.map((c, i) => (
                   <div key={i} className="rounded-xl border border-white/[0.08] px-3 py-2 text-sm">
                     <div className="font-medium">{c.name}</div>

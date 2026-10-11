@@ -54,7 +54,7 @@ export default function PaperTab({ data, mode, onReset }: Props) {
   const paperTrades = data.trades.filter((t) => t.mode === "paper");
 
   return (
-    <div className="grid gap-4 sm:gap-5">
+    <div className="grid grid-cols-1 gap-4 sm:gap-5">
       <Card>
         <CardHeader>
           <CardTitle>What paper means</CardTitle>

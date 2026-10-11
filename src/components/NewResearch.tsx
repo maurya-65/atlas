@@ -47,7 +47,7 @@ export default function NewResearch({ atlas }: ViewProps) {
 
   return (
     <div className="space-y-4">
-      <div className="grid items-start gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Research a company</CardTitle>

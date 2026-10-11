@@ -26,12 +26,12 @@ export default function WatchingView(props: ViewProps) {
           </Button>
         }
       />
-      <div className="grid items-start gap-4 sm:gap-5 xl:grid-cols-3">
-        <div className="grid gap-4 sm:gap-5 xl:col-span-2">
+      <div className="grid grid-cols-1 items-start gap-4 sm:gap-5 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:gap-5 xl:col-span-2">
           <RulesSection atlas={props.atlas} />
           <MorningCheck atlas={props.atlas} />
         </div>
-        <div className="grid gap-4 sm:gap-5">
+        <div className="grid grid-cols-1 gap-4 sm:gap-5">
           <TopicsSection atlas={props.atlas} />
           <FreshnessCard atlas={props.atlas} />
         </div>

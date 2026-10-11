@@ -242,7 +242,7 @@ export default function ResearchCard({
           </p>
 
           {(r.bullPoints.length > 0 || r.bearPoints.length > 0) && (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <PointPanel title="Points in favour" items={r.bullPoints} sources={r.sources} tone="up" />
               <PointPanel title="Points against" items={r.bearPoints} sources={r.sources} tone="down" />
             </div>
@@ -268,7 +268,7 @@ export default function ResearchCard({
           )}
 
           {hasAgreement && (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <PointPanel title="Where they agreed" items={r.agreements} sources={r.sources} tone="plain" />
               <PointPanel title="Where they disagreed" items={r.disagreements} sources={r.sources} tone="plain" />
             </div>

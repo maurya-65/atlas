@@ -68,7 +68,7 @@ export default function ClaudeSection({ atlas }: Pick<ViewProps, "atlas">) {
   const needsAddress = origin !== "" && !isLocalAddress(origin);
 
   return (
-    <div id="claude" className="grid gap-4 sm:gap-5">
+    <div id="claude" className="grid grid-cols-1 gap-4 sm:gap-5">
       <Card className="gap-0 pb-0">
         <CardHeader className="pb-4">
           <CardTitle>Research in Claude</CardTitle>
