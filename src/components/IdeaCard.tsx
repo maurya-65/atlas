@@ -70,9 +70,9 @@ function PaperOrder({ atlas, messageId, idea, onClose }: { atlas: Atlas; message
 
   const rows = preview && [
     ["Paper cash", pct(preview.cash.before), pct(preview.cash.after)],
-    [`${idea.ticker} in your portfolio`, pct(preview.stock.before), pct(preview.stock.after)],
+    [`In ${idea.ticker}`, pct(preview.stock.before), pct(preview.stock.after)],
     [
-      "Your biggest holding",
+      "Top holding",
       preview.biggest.before ? `${preview.biggest.before.ticker} ${pct(preview.biggest.before.share)}` : "none",
       preview.biggest.after ? `${preview.biggest.after.ticker} ${pct(preview.biggest.after.share)}` : "none",
     ],
@@ -162,7 +162,7 @@ export default function IdeaCard({ atlas, messageId, idea, tracked }: { atlas: A
         <Fact label="Last 6 months" value={signedPct(idea.move6m)} />
         <Fact label="Below its yearly high" value={pct(idea.belowHigh, 0)} />
         <Fact label="Ride" value={SWINGS[idea.swings]} />
-        <Fact label="Pays dividends" value={idea.yield ? `Yes, about ${pct(idea.yield)} a year` : "No"} />
+        <Fact label="Pays dividends" value={idea.yield ? `${pct(idea.yield)} a year` : "No"} />
       </div>
 
       <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
@@ -172,8 +172,8 @@ export default function IdeaCard({ atlas, messageId, idea, tracked }: { atlas: A
         <Point label="How it fits what you own">
           {[
             held ? `You already own ${pct(idea.heldNow)} of your portfolio in it.` : "You don’t own it yet.",
-            idea.areaNow > 0.0005 ? `${pct(idea.areaNow)} of your portfolio is already in ${idea.area}.` : "",
-            idea.dollars > 0 ? `The suggested ${money(idea.dollars, 0)} would make it ${pct(idea.weightAfter)}.` : "",
+            idea.areaNow > 0.0005 ? `${pct(idea.areaNow)} of your portfolio is already in the same area (${idea.area}).` : "",
+            idea.dollars > 0 ? `The suggested ${money(idea.dollars, 0)} would make it ${pct(idea.weightAfter)} of your portfolio.` : "",
             idea.fit,
           ]
             .filter(Boolean)

@@ -74,9 +74,14 @@ export default function IdeasView({ atlas, route }: ViewProps) {
           </form>
           <div className="flex flex-wrap gap-1.5">
             {EXAMPLES.map((example) => (
-              <Button key={example} type="button" size="xs" variant="outline" onClick={() => setPrompt(example)} className="h-auto min-h-6 py-1 text-left whitespace-normal">
+              <button
+                key={example}
+                type="button"
+                onClick={() => setPrompt(example)}
+                className="max-w-full rounded-full border border-white/12 bg-white/[0.07] px-3 py-1 text-left text-xs font-medium transition-colors hover:border-white/20 hover:bg-white/[0.12]"
+              >
                 {example}
-              </Button>
+              </button>
             ))}
           </div>
           <p className="text-xs text-muted-foreground">Atlas asks a few questions first, then the ideas appear on this page. Nothing is bought with real money.</p>
@@ -108,7 +113,7 @@ export default function IdeasView({ atlas, route }: ViewProps) {
               <tr>
                 <Th>Idea</Th>
                 <Th className="text-right">Put in</Th>
-                <Th className="text-right">Now</Th>
+                <Th className="hidden text-right sm:table-cell">Now</Th>
                 <Th className="text-right">Gain or loss</Th>
               </tr>
             </thead>
@@ -122,7 +127,7 @@ export default function IdeasView({ atlas, route }: ViewProps) {
                     <div className="max-w-40 truncate text-xs text-muted-foreground">{t.name}</div>
                   </Td>
                   <Td className="text-right tabular-nums">{money(t.dollars, 0)}</Td>
-                  <Td className="text-right tabular-nums">{money(t.dollars + t.effect, 2)}</Td>
+                  <Td className="hidden text-right tabular-nums sm:table-cell">{money(t.dollars + t.effect, 2)}</Td>
                   <Td className="text-right tabular-nums">
                     {t.effect >= 0 ? "+" : "−"}
                     {money(Math.abs(t.effect))} <span className="text-muted-foreground">({signedPct(t.effectPct)})</span>
