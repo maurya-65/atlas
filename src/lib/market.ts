@@ -106,12 +106,15 @@ export function factsFromChart(ticker: string, chart: Chart | null | undefined):
   };
 }
 
+/** Yahoo writes share classes with a dash: BRK.B is BRK-B there. */
+const yahooSymbol = (ticker: string) => encodeURIComponent(ticker.replace(".", "-"));
+
 /**
  * Looks a ticker up. Resolves to the reason when the ticker can't be suggested; throws when the data
  * source itself couldn't be reached, so a broken connection isn't mistaken for a bad ticker.
  */
 export async function marketFacts(ticker: string): Promise<{ facts: MarketFacts } | { why: string }> {
-  const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=1y&interval=1d&events=div`, {
+  const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol(ticker)}?range=1y&interval=1d&events=div`, {
     headers: { "User-Agent": "Mozilla/5.0" },
     signal: AbortSignal.timeout(8000),
   });
@@ -123,7 +126,7 @@ export async function marketFacts(ticker: string): Promise<{ facts: MarketFacts 
 
 /** Today's price of a US-listed ticker, or null when there isn't one. */
 export async function latestPrice(ticker: string): Promise<number | null> {
-  const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=1d&interval=1d`, {
+  const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol(ticker)}?range=1d&interval=1d`, {
     headers: { "User-Agent": "Mozilla/5.0" },
     signal: AbortSignal.timeout(8000),
   });
