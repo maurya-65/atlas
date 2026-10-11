@@ -10,7 +10,8 @@ export const anthropic = new Anthropic(
 );
 
 /**
- * Every API call is research, so all of it runs on Opus. Small triage calls pass effort "low".
+ * The default for the calls where judgment matters most (the research verdict, scans, what-ifs). Research picks its
+ * own model per stage (see research.ts). Small triage calls pass effort "low".
  * Never used for arithmetic — thresholds, percentages and caps are plain code.
  */
 export const MAIN_MODEL = "claude-opus-5-5";
@@ -29,11 +30,16 @@ export interface Usage {
   server_tool_use?: { web_search_requests?: number } | null;
 }
 
+/** Haiku 5.5 has no server-side refusal fallback; every other model we use does. */
+const fallbacksFor = (model: string) =>
+  model.includes("haiku") ? {} : { betas: ["server-side-fallback-2026-07-01" as const], fallbacks: "default" as const };
+
 // USD per million tokens, from the Anthropic pricing page (checked 2026-10-10): input, output, 5-minute cache
 // write, cache read. A web search costs $10 per 1,000 on top. Only used to log what a research run cost.
 const RATES: Record<string, [number, number, number, number]> = {
   "claude-opus-5-5": [4, 20, 5, 0.2],
   "claude-sonnet-5-5": [2, 10, 2.5, 0.1],
+  "claude-haiku-5-5": [0.1, 0.5, 0.125, 0.01],
 };
 const SEARCH_USD = 0.01;
 
@@ -74,8 +80,7 @@ export async function structured<S extends z.ZodType>(opts: {
       },
     ],
     output_config: { format: betaZodOutputFormat(opts.schema), effort: opts.effort ?? "medium" },
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
+    ...fallbacksFor(model),
   });
   opts.track?.({ ...response.usage, model });
   if (response.stop_reason === "refusal") throw new RefusalError("The model declined this request.");
@@ -132,8 +137,7 @@ export async function structuredWithSearch<S extends z.ZodType>(opts: {
         messages,
         tools: [{ type: "web_search_20260209", name: "web_search", max_uses: Math.max(1, opts.maxSearches - searches) }],
         output_config: { format, effort: opts.effort ?? "medium" },
-        betas: ["server-side-fallback-2026-07-01"],
-        fallbacks: "default",
+        ...fallbacksFor(model),
       })
       .finalMessage();
 

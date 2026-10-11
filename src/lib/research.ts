@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { costOf, structured, structuredWithSearch, type Usage, type WebPage } from "./llm";
+import { CHAT_MODEL, costOf, MAIN_MODEL, structured, structuredWithSearch, type Usage, type WebPage } from "./llm";
 import {
   dedupe,
   federalRegister,
@@ -19,9 +19,17 @@ import type { AgentStep, GraphEdge, GraphNode, Holding, ResearchAngle, ResearchE
 // filings, news feeds, Federal Register), search the web to read past the titles, and write a short cited
 // report. Three are open: they get no source list and decide for themselves what to search each time. Then
 // each reads the others' reports and argues back (one debate round). A judge weighs the debate into a verdict with a 0-100 confidence
-// score. Every call is Opus; revenue growth and position size are computed in code, never by the model.
-// Effort is medium for the analysts and the debate (research work scores the same as at high for less) and
-// high for the one judge call that writes the verdict.
+// score. Revenue growth and position size are computed in code, never by the model.
+//
+// The models are picked to keep one research near a dollar. The six analysts that start from a prepared source
+// list have the narrowest job (read those sources, search a little, write it up), so they run on Haiku. The
+// three open analysts plan their own searches, and the debate weighs the reports against each other, so
+// those run on Sonnet. The judge, which writes the verdict, stays on Opus at high effort. The rest runs at
+// medium effort, where research work scores about the same as at high for less.
+const FIXED_MODEL = "claude-haiku-5-5";
+const OPEN_MODEL = CHAT_MODEL;
+const DEBATE_MODEL = CHAT_MODEL;
+const JUDGE_MODEL = MAIN_MODEL;
 
 const ANALYST_EFFORT = "medium" as const;
 const JUDGE_EFFORT = "high" as const;
@@ -400,6 +408,7 @@ export async function researchTicker(ticker: string, ctx: ResearchContext): Prom
             : `${header}\n\nYour sources:\n${numbered(src) || "(none found)"}\n\nResearch your angle, then write your short report, key points, stance and confidence score.`,
           schema: AnalystSchema,
           maxSearches: a.searches ?? (a.open ? SEARCHES_PER_OPEN_ANALYST : SEARCHES_PER_ANALYST),
+          model: a.open ? OPEN_MODEL : FIXED_MODEL,
           maxTokens: 24000,
           effort: ANALYST_EFFORT,
           track: trackFor("analysts"),
@@ -454,6 +463,7 @@ export async function researchTicker(ticker: string, ctx: ResearchContext): Prom
         system:
           "You are an analyst in a research debate. Read the other analysts' reports, challenge the weakest claim you see " +
           `with evidence, and update your own stance only if their evidence is genuinely convincing. Don't just agree to be polite. ${PLAIN}`,
+        model: DEBATE_MODEL,
         sharedPrefix: sharedReading,
         prompt: `You are the "${r.def.name}" analyst. Your own report is the "${r.def.name}" one above; the rest belong to the other analysts.`,
         schema: DebateSchema,
@@ -545,6 +555,7 @@ export async function researchTicker(ticker: string, ctx: ResearchContext): Prom
         "linked to the facts they support. Short unique slug ids; edges have a 2-4 word label.",
       prompt: `${header}\n\nAnalyst reports and debate:\n${verdictInput || "(all analysts failed)"}\n\nAll sources:\n${allSourcesText}`,
       schema: JudgeSchema,
+      model: JUDGE_MODEL,
       maxTokens: 20000,
       effort: JUDGE_EFFORT,
       track: trackFor("judge"),

@@ -37,19 +37,19 @@ const judge = {
   edges: [],
 };
 
-let calls: { system: string; searched: boolean; content?: unknown }[] = [];
+let calls: { system: string; searched: boolean; model: string; fallbacks?: unknown; content?: unknown }[] = [];
 
 beforeEach(() => {
   calls = [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- replacing SDK methods with test doubles
   const messages = anthropic.beta.messages as any;
-  messages.parse = async ({ system, messages: sent }: { system: string; messages: { content: unknown }[] }) => {
-    calls.push({ system, searched: false, content: sent[0].content });
+  messages.parse = async ({ system, model, fallbacks, messages: sent }: { system: string; model: string; fallbacks?: unknown; messages: { content: unknown }[] }) => {
+    calls.push({ system, model, fallbacks, searched: false, content: sent[0].content });
     return { stop_reason: "end_turn", parsed_output: system.includes("research debate") ? debater : judge };
   };
-  messages.stream = ({ system }: { system: string }) => ({
+  messages.stream = ({ system, model, fallbacks }: { system: string; model: string; fallbacks?: unknown }) => ({
     finalMessage: async () => {
-      calls.push({ system, searched: true });
+      calls.push({ system, model, fallbacks, searched: true });
       return {
         stop_reason: "end_turn",
         usage: { server_tool_use: { web_search_requests: 2 } },
@@ -118,4 +118,15 @@ test("the debaters read the same cached text, so only the first one pays full pr
   assert.ok(blocks.every((b) => b[0].cache_control), "the shared reading is marked for caching");
   assert.equal(new Set(blocks.map((b) => b[0].text)).size, 1, "every debater gets the identical text first");
   assert.equal(new Set(blocks.map((b) => b[1].text)).size, 9, "only the last part says which analyst you are");
+});
+
+test("each stage runs on the model picked for it, and Haiku is never sent a fallback it doesn't have", async () => {
+  await researchTicker("ACME", { interests: [] });
+  const count = (f: (c: (typeof calls)[number]) => boolean) => calls.filter(f).length;
+  assert.equal(count((c) => c.searched && c.model === "claude-haiku-5-5"), 6, "six analysts work from prepared sources");
+  assert.equal(count((c) => c.searched && c.model === "claude-sonnet-5-5"), 3, "three analysts plan their own searches");
+  assert.equal(count((c) => c.system.includes("research debate") && c.model === "claude-sonnet-5-5"), 9);
+  assert.equal(count((c) => c.system.includes("You are the judge") && c.model === "claude-opus-5-5"), 1);
+  assert.ok(calls.filter((c) => c.model === "claude-haiku-5-5").every((c) => c.fallbacks === undefined));
+  assert.ok(calls.filter((c) => c.model !== "claude-haiku-5-5").every((c) => c.fallbacks === "default"));
 });
