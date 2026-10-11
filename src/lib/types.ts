@@ -442,6 +442,15 @@ const NON_STOCK = new Set(["BTC", "ETH", "SOL", "USDC", "USDT", "DAI", "XRP", "A
 const FUNDS = new Set(["SPY", "VOO", "IVV", "QQQ", "VTI", "DIA", "IWM"]);
 /** US mutual fund symbols are five letters ending in X (FXAIX, VFIAX). */
 const MUTUAL_FUND = /^[A-Z]{4}X$/;
+const STABLECOINS = new Set(["USDC", "USDT", "DAI"]);
+/** The broad group a holding belongs to, for totals said in plain words. Stablecoins are kept apart: they don't move like crypto. */
+export function holdingGroup(ticker: string, kind?: string | null): "company" | "fund" | "crypto" | "stablecoin" {
+  const t = ticker.toUpperCase();
+  if (isFund(t, kind)) return "fund";
+  if (STABLECOINS.has(t)) return "stablecoin";
+  return kind === "crypto" || NON_STOCK.has(t) ? "crypto" : "company";
+}
+
 /** True for a fund, which already holds many companies (index fund, ETF, mutual fund). */
 export function isFund(ticker: string, kind?: string | null): boolean {
   if (kind) return kind === "etf" || kind === "mutualfund" || kind === "cef";

@@ -19,7 +19,10 @@ function Account({ atlas }: Pick<ViewProps, "atlas">) {
     <Card id="brokerage">
       <CardHeader>
         <CardTitle>Brokerage</CardTitle>
-        <CardDescription>Where Atlas reads your holdings, balances and orders, through SnapTrade. It can’t place a trade unless you approve one.</CardDescription>
+        <CardDescription>
+          Where Atlas reads your holdings, balances and orders. SnapTrade is the secure service that links Atlas to your brokerage. Atlas can’t place a trade unless you approve
+          one.
+        </CardDescription>
         <CardAction>{status}</CardAction>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -54,6 +57,11 @@ function Account({ atlas }: Pick<ViewProps, "atlas">) {
                 {selected?.institution} — {selected?.name}
               </div>
             )}
+            <p className="text-xs text-muted-foreground">
+              Shown as broker, then the account’s name at that broker.
+              {/sandbox/i.test(selected?.institution ?? "") && " “Sandbox” is SnapTrade’s practice brokerage: it works like a real one but holds pretend money."}
+              {/\bIRA\b/.test(state.accounts.map((a) => a.name).join(" ")) && " An IRA is a US retirement account."}
+            </p>
             {selected && (
               <p className="text-muted-foreground">
                 {selected.isPaper

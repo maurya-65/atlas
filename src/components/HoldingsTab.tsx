@@ -123,10 +123,10 @@ export default function HoldingsTab({ atlas }: Pick<ViewProps, "atlas">) {
             <tr>
               <Th>Stock</Th>
               <Th className="text-right">Value</Th>
-              <Th className="text-right">Share</Th>
+              <Th className="hidden text-right sm:table-cell">Share</Th>
               <Th className="text-right">Since bought</Th>
               {!sample && (
-                <Th className="text-right">
+                <Th className="hidden text-right sm:table-cell">
                   <span className="sr-only">Actions</span>
                 </Th>
               )}
@@ -143,15 +143,15 @@ export default function HoldingsTab({ atlas }: Pick<ViewProps, "atlas">) {
                       {h.ticker}
                     </a>
                   )}
-                  {h.name && <div className="max-w-44 truncate text-xs text-muted-foreground">{h.name}</div>}
+                  {h.name && <div className="max-w-28 truncate text-xs text-muted-foreground sm:max-w-44">{h.name}</div>}
                 </Td>
                 <Td className="text-right tabular-nums">{money(h.value, 0)}</Td>
-                <Td className="text-right text-muted-foreground tabular-nums">{total ? pct(h.value / total, 0) : "—"}</Td>
+                <Td className="hidden text-right text-muted-foreground tabular-nums sm:table-cell">{total ? pct(h.value / total, 0) : "—"}</Td>
                 <Td className={cn("text-right tabular-nums", h.pnlPct !== null && h.pnlPct > 0.0005 ? "font-medium text-foreground" : "text-muted-foreground")}>
                   {h.pnlPct === null ? "cost unknown" : signedPct(h.pnlPct)}
                 </Td>
                 {!sample && (
-                  <Td className="text-right">
+                  <Td className="hidden text-right sm:table-cell">
                     {isResearchableStock(h.ticker, h.kind) && (
                       <Button variant="outline" size="sm" onClick={() => actions.research(h.ticker)} disabled={researching(h.ticker)} title={`Research ${h.name || h.ticker}`}>
                         {researching(h.ticker) ? "Researching…" : "Research"}

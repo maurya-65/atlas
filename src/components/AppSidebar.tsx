@@ -59,10 +59,10 @@ function SidebarBody({ view, chatHref, openDecisions, onNavigate, onClose }: Bod
         )}
       </div>
 
-      <nav data-slot="sidebar-content" aria-label="Sections" className="no-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-auto">
+      <nav data-slot="sidebar-content" aria-label="Sections" className="no-scrollbar flex min-h-0 flex-1 flex-col gap-1 overflow-auto">
         {GROUPS.map((group) => (
-          <div key={group.label} data-slot="sidebar-group" className="relative flex w-full min-w-0 flex-col p-2">
-            <div data-slot="sidebar-group-label" className={cn("flex h-8 shrink-0 items-center px-2", EYEBROW)}>
+          <div key={group.label} data-slot="sidebar-group" className="relative flex w-full min-w-0 flex-col px-2 py-1">
+            <div data-slot="sidebar-group-label" className={cn("flex h-7 shrink-0 items-center px-2", EYEBROW)}>
               {group.label}
             </div>
             <ul data-slot="sidebar-menu" className="flex w-full min-w-0 flex-col gap-1">

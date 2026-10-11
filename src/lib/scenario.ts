@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { structured } from "./llm";
 import { dedupe, federalRegister, googleNews, secFilings, shortName, type SourceItem } from "./sources";
-import { isResearchableStock } from "./types";
+import { holdingGroup, isResearchableStock } from "./types";
 import type {
   CardOption,
   GraphEdge,
@@ -13,6 +13,24 @@ import type {
   ScenarioResult,
   SourceRef,
 } from "./types";
+
+/**
+ * How the portfolio splits into broad groups, as one line for the model. Without it the model adds the shares
+ * up itself and can give two different totals in one answer (crypto with and without the stablecoin).
+ */
+export function groupTotals(p: Pick<Portfolio, "holdings" | "cash" | "total">): string {
+  const total = p.total || 1;
+  const sum = { company: 0, fund: 0, crypto: 0, stablecoin: 0 };
+  for (const h of p.holdings) sum[holdingGroup(h.ticker, h.kind)] += h.value;
+  const share = (x: number) => `${Math.round((x / total) * 100)}%`;
+  const parts = [
+    `single companies ${share(sum.company)}`,
+    `funds ${share(sum.fund)}`,
+    `crypto ${share(sum.crypto)}${sum.stablecoin > 0 ? ` (not counting stablecoins, a further ${share(sum.stablecoin)})` : ""}`,
+    `cash ${share(p.cash)}`,
+  ];
+  return `Group totals, already worked out (whenever you mention a group's share use exactly these, never add shares up yourself): ${parts.join("; ")}.`;
+}
 
 // What-if deep agent: a planner splits the scenario into causal channels, one fast researcher per channel
 // reads public sources in parallel, and a synthesizer maps it onto the user's real holdings.
@@ -116,7 +134,7 @@ export async function runScenario(
   const holdingsText = holdings.length
     ? holdings
         .map((h) => `${h.ticker} (${h.name}${h.industry ? `, industry: ${h.industry}` : ""}): ${(h.weight * 100).toFixed(1)}% of portfolio`)
-        .join("\n")
+        .join("\n") + `\n\n${groupTotals(ctx.portfolio)}`
     : "(no holdings — analyse which sectors would be affected instead)";
 
   // ---- 1. Planner ----

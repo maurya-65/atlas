@@ -140,3 +140,10 @@ test("when every analyst fails, the run fails with the reason instead of posting
   });
   await assert.rejects(researchTicker("ACME", { interests: [] }), /the service is down/);
 });
+
+test("a what-if is told each group's share, with stablecoins kept apart from crypto", async () => {
+  const { groupTotals } = await import("../src/lib/scenario");
+  const h = (ticker: string, value: number) => ({ ticker, name: ticker, units: 1, price: value, value, avgCost: value, pnlPct: 0 });
+  const line = groupTotals({ total: 1000, cash: 200, holdings: [h("BTC", 300), h("USDC", 50), h("SPY", 250), h("MSFT", 200)] });
+  assert.match(line, /single companies 20%; funds 25%; crypto 30% \(not counting stablecoins, a further 5%\); cash 20%/);
+});
