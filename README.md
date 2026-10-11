@@ -45,6 +45,7 @@ Three things are worth knowing before reading the code.
 - **Paper account.** The practice copy of your account, under *Portfolio → Paper account*: the trades you approved, and what each would have gained or lost (worked out in code).
 - **Ask.** Questions about the portfolio or an investing term, answered in the current thread. If a question needs research or a what-if, the answer comes with a button that runs it, so a slow and costly job never starts without a click. Atlas keeps a one-line note of each answer so later answers have context.
 - **Paper and live mode.** Paper mode (the default) trades a simulated copy of your account priced with live quotes. Live mode sends real market orders through SnapTrade.
+- **Guide.** A user manual inside the app (*Guide* in the menu): what each page is for, a ten-minute first walk-through, the words used, and what to do when something doesn't work.
 
 ## Getting started
 
@@ -177,7 +178,7 @@ The tests cover the parts where a mistake costs money or leaks access: trade exe
 
 ```
 src/app/            pages and API routes (Next.js App Router)
-src/components/     the UI: Home, Portfolio, Ideas, Research, Chat, Decisions, Watching, History, Settings
+src/components/     the UI: Home, Portfolio, Ideas, Research, Chat, Decisions, Watching, History, Guide, Settings
 src/lib/            everything the app does, one file per concern (below)
 src/mcp/server.mts  MCP server
 src/proxy.ts        sign-in and write checks, run before every request

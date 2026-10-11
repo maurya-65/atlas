@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
-import { ClockIcon, DashboardIcon, EyeIcon, GlobeIcon, InboxIcon, LightbulbIcon, MessageIcon, PieIcon, PlugIcon, SearchIcon, XIcon } from "./icons";
+import { BookIcon, ClockIcon, DashboardIcon, EyeIcon, GlobeIcon, InboxIcon, LightbulbIcon, MessageIcon, PieIcon, PlugIcon, SearchIcon, XIcon } from "./icons";
 import { Button, cn } from "./ui";
 import { VIEWS, viewHref, type View } from "./views";
 
@@ -14,6 +14,7 @@ const ICONS: Record<View, ReactNode> = {
   decisions: <InboxIcon />,
   watching: <EyeIcon />,
   history: <ClockIcon />,
+  guide: <BookIcon />,
   settings: <PlugIcon />,
 };
 
@@ -23,7 +24,7 @@ const GROUPS: { label: string; views: View[] }[] = [
   { label: "Understand", views: ["ideas", "research", "chat"] },
   { label: "Decide and watch", views: ["decisions", "watching"] },
   { label: "Review", views: ["history"] },
-  { label: "Setup", views: ["settings"] },
+  { label: "Help and setup", views: ["guide", "settings"] },
 ];
 
 const EYEBROW = "text-[11px] font-medium tracking-wider text-sidebar-foreground/50 uppercase";

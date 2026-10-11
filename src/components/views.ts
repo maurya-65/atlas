@@ -3,9 +3,9 @@ import { useSyncExternalStore } from "react";
 /**
  * The sections of the single Atlas page. The URL hash picks one, and some sections have a second level:
  *   #home  #portfolio[/holdings|performance|paper|orders]  #ideas[/<id>]  #research[/new|watchlist|scenarios|<TICKER>]
- *   #decisions  #watching  #chat[/<id>]  #history  #settings[/<section>]
+ *   #decisions  #watching  #chat[/<id>]  #history  #guide  #settings[/<section>]
  */
-export type View = "home" | "portfolio" | "ideas" | "research" | "decisions" | "watching" | "chat" | "history" | "settings";
+export type View = "home" | "portfolio" | "ideas" | "research" | "decisions" | "watching" | "chat" | "history" | "guide" | "settings";
 
 export interface ViewInfo {
   id: View;
@@ -25,6 +25,7 @@ export const VIEWS: ViewInfo[] = [
   { id: "watching", label: "Watching", title: "Watching", description: "What Atlas keeps an eye on for you, and when it checks." },
   { id: "chat", label: "Chat", title: "Chat", description: "Ask a question about your portfolio or an investing term." },
   { id: "history", label: "History", title: "History", description: "Everything Atlas has done, newest first." },
+  { id: "guide", label: "Guide", title: "Guide", description: "How Atlas works, page by page, and what to do when something doesn't." },
   { id: "settings", label: "Settings", title: "Settings", description: "Brokerage, paper or real money, safety limits, Claude and memory." },
 ];
 

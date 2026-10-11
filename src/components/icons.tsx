@@ -168,6 +168,13 @@ export const InboxIcon = (p: IconProps) => (
   </Svg>
 );
 
+export const BookIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 7v14" />
+    <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
+  </Svg>
+);
+
 export const LightbulbIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" />

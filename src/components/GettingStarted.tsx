@@ -81,7 +81,13 @@ export default function GettingStarted({ state }: { state: AppState }) {
     <Card>
       <CardHeader>
         <CardTitle>Getting started</CardTitle>
-        <CardDescription>Two quick steps and Atlas is working for you.</CardDescription>
+        <CardDescription>
+          Two quick steps and Atlas is working for you. New here? The{" "}
+          <a href="#guide" className="font-medium text-foreground underline decoration-white/30 underline-offset-2 hover:decoration-white/70">
+            Guide
+          </a>{" "}
+          explains every page.
+        </CardDescription>
         <CardAction>
           <Button variant="ghost" size="xs" onClick={dismiss}>
             Hide

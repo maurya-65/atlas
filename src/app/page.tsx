@@ -5,6 +5,7 @@ import { ActivityPill, Toasts } from "@/components/Activity";
 import AppSidebar from "@/components/AppSidebar";
 import ChatView from "@/components/ChatView";
 import DecisionsView from "@/components/DecisionsView";
+import GuideView from "@/components/GuideView";
 import HistoryView from "@/components/HistoryView";
 import HomeView from "@/components/HomeView";
 import IdeasView from "@/components/IdeasView";
@@ -29,6 +30,7 @@ const PAGES = {
   decisions: DecisionsView,
   watching: WatchingView,
   history: HistoryView,
+  guide: GuideView,
   settings: SettingsView,
 } as const;
 
