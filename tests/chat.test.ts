@@ -56,7 +56,7 @@ test("an answer that needs research or a what-if comes with a button for it", as
   const research = (await asked({ kind: "research", value: "tsla" }))!;
   assert.deepEqual(research[0], { label: "Research TSLA", kind: "research", recommended: true, payload: { ticker: "TSLA" } });
   // The same research can run in Claude, on the user's own plan.
-  assert.deepEqual([research[1].kind, research[1].label, research[1].payload?.ticker], ["open_claude", "Deep research TSLA in Claude", "TSLA"]);
+  assert.deepEqual([research[1].kind, research[1].label, research[1].payload?.ticker], ["open_claude", "Research TSLA in Claude", "TSLA"]);
   assert.match(research[1].payload!.url!, /^https:\/\/claude\.ai\/new\?q=/);
   const oil = "What if oil prices double next year?";
   assert.deepEqual(await asked({ kind: "what_if", value: oil }), [
@@ -88,7 +88,7 @@ test("chats are listed newest first, titled by their first question, and can be 
   const s = await readStore();
   assert.equal(s.messages.some((m) => m.threadId === A), false);
   assert.ok(s.messages.some((m) => m.threadId === B));
-  assert.ok(s.messages.some((m) => !m.threadId), "what Atlas found on its own stays in the Inbox");
+  assert.ok(s.messages.some((m) => !m.threadId), "what Atlas found on its own stays outside any chat");
 });
 
 test("chat requests with a bad id or nothing to say are refused", async () => {

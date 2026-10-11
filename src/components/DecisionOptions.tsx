@@ -9,6 +9,9 @@ import { useExtensionReady } from "./useExtensionReady";
  * Option buttons for a decision, in one row. The recommended option is shown first (white), the others are
  * glass; onChoose always receives the option's position in the original `options` array.
  */
+/** Cards saved before the wording changed still carry "Go deeper in Claude" or a bracketed note. */
+const claudeLabel = (label: string) => (/^go deeper in claude/i.test(label) ? "Research in Claude" : label.replace(/\s*\(.*\)\s*$/, "").replace(/^deep research /i, "Research "));
+
 export default function DecisionOptions({
   messageId,
   options,
@@ -77,7 +80,7 @@ export default function DecisionOptions({
               className={buttonClass("outline", "option")}
             >
               {/* Cards saved before the label was shortened still carry a bracketed note; leave it out. */}
-              {o.label.replace(/\s*\(.*\)\s*$/, "")} ↗
+              {claudeLabel(o.label)} ↗
             </a>
           ) : (
             <button
@@ -97,7 +100,7 @@ export default function DecisionOptions({
       {paperNote && <p className="mt-2 text-xs text-muted-foreground">{paperNote}</p>}
       {openedClaude && (
         <p className="mt-2 text-sm text-muted-foreground">
-          In the Claude tab, check the prompt and press send. Keep that tab open: when the research finishes (about 10 minutes), the card appears in your Inbox by itself.
+          In the Claude tab, check the prompt and press send. Keep that tab open: when the research finishes (about 10 minutes), the result appears under Research by itself.
         </p>
       )}
       {error && <p className="mt-2 text-sm text-live">That didn’t go through: {error}</p>}

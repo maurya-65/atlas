@@ -51,7 +51,7 @@ export function researchOptions(r: ResearchResult, holding: Holding | undefined,
     options.push(
       claudeOption(
         { ticker: r.ticker, name: r.companyName, holding, portfolioTotal, quick: r },
-        "Go deeper in Claude",
+        "Research in Claude",
       ),
     );
   }

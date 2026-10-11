@@ -194,7 +194,7 @@ export default function ResearchCard({
 
   return (
     <FeedItem
-      kind={fromClaude ? "Claude Deep Research" : deep ? "Deep research" : "Research"}
+      kind={fromClaude ? "Research in Claude" : "Research"}
       label={`Research on ${r.ticker}`}
       tag={<OriginTag origin={m?.origin} />}
       time={ran && <time dateTime={r.generatedAt}>{ran}</time>}

@@ -12,7 +12,7 @@ const VERDICT: Record<Stance, string> = {
 };
 
 const TRIGGER: Record<DailyBrief["trigger"], string> = {
-  schedule: "scheduled run",
+  schedule: "morning check",
   manual: "you ran it",
   claude: "asked from Claude",
 };
@@ -45,22 +45,22 @@ function sinceWords(since: string | null): string {
 const SUB = "text-xs font-medium tracking-wider text-muted-foreground uppercase";
 
 /**
- * The daily brief, in the feed's one pattern. `expanded` (the Daily run page) shows the whole brief;
+ * The daily brief, in the feed's one pattern. `expanded` shows the whole brief at full size;
  * `sample` marks made-up example content.
  */
 export default function DailyBriefCard({ m, b, expanded = false, sample = false }: { m: ChatMessage; b: DailyBrief; expanded?: boolean; sample?: boolean }) {
   const p = b.portfolio;
   const sourceNote =
-    p.source === "demo" ? "demo portfolio" : p.source === "paper" ? "paper portfolio" : null;
+    p.source === "demo" ? "demo portfolio" : p.source === "paper" ? "paper account" : null;
 
   let change: string;
   if (p.changeDollars === null) {
-    change = "first run, nothing to compare with yet";
+    change = "This is the first check, so there is nothing to compare with yet";
   } else if (Math.abs(p.changeDollars) < 0.5) {
-    change = `unchanged since ${sinceWords(p.since)}`;
+    change = `Portfolio unchanged since ${sinceWords(p.since)}`;
   } else {
     const sign = p.changeDollars > 0 ? "+" : "−";
-    change = `${sign}${money(Math.abs(p.changeDollars), 0)}${p.changePct !== null ? ` (${signedPct(p.changePct)})` : ""} since ${sinceWords(p.since)}`;
+    change = `Portfolio ${sign}${money(Math.abs(p.changeDollars), 0)}${p.changePct !== null ? ` (${signedPct(p.changePct)})` : ""} since ${sinceWords(p.since)}`;
   }
 
   const body = (
@@ -117,19 +117,19 @@ export default function DailyBriefCard({ m, b, expanded = false, sample = false 
 
       {!sample && (
         <p>
-          {b.recommendations > 0
-            ? `${b.recommendations} suggestion${b.recommendations === 1 ? "" : "s"} follow as their own cards. Nothing is bought or sold unless you click, and these run in paper mode (simulated).`
-            : "No suggestions today."}
+          {b.recommendations === 0
+            ? "No suggestions today."
+            : `${b.recommendations === 1 ? "1 suggestion follows as its own card" : `${b.recommendations} suggestions follow as their own cards`}. Nothing is bought or sold unless you click, and they are paper trades (practice only).`}
         </p>
       )}
-      {b.nextRunAt && !sample && <p className="text-xs text-muted-foreground">Next daily run: {friendlyTime(b.nextRunAt)}.</p>}
+      {b.nextRunAt && !sample && <p className="text-xs text-muted-foreground">Next morning check: {friendlyTime(b.nextRunAt)}.</p>}
     </>
   );
 
   return (
     <FeedItem
-      kind="Daily brief"
-      tag={sample ? <SampleTag /> : <OriginTag origin={m.origin} />}
+      kind="Morning brief"
+      tag={sample ? <SampleTag /> : <OriginTag origin={m.origin === "Daily run" ? "Morning check" : m.origin} />}
       time={
         sample ? undefined : (
           <>
@@ -144,15 +144,15 @@ export default function DailyBriefCard({ m, b, expanded = false, sample = false 
       }
       summary={
         <>
-          Portfolio {change}.{" "}
+          {change}.{" "}
           {b.flags.length > 0 ? `${b.flags.length} thing${b.flags.length === 1 ? "" : "s"} flagged by your rules.` : "Nothing over your limits."}
-          {b.researched.length > 0 && ` ${b.researched.length} stock${b.researched.length === 1 ? "" : "s"} researched in depth.`}
+          {b.researched.length > 0 && ` Researched in depth: ${b.researched.map((r) => r.ticker).join(", ")}.`}
         </>
       }
       details={expanded ? undefined : body}
       detailsLabel="the brief"
     >
-      {sample && <p className="mt-2 text-xs text-muted-foreground">Made-up example. Your real brief replaces it after the first daily run.</p>}
+      {sample && <p className="mt-2 text-xs text-muted-foreground">Made-up example. Your real brief replaces it after the first morning check.</p>}
       {expanded && <div className="mt-4 space-y-4 border-t border-white/[0.08] pt-4">{body}</div>}
     </FeedItem>
   );

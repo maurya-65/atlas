@@ -301,7 +301,7 @@ async function run(opts: { trigger: Trigger; onEvent?: (e: ResearchEvent) => voi
       options.push(
         claudeOption(
           { ticker: sg.ticker, name: sg.name, holding: held.get(sg.ticker), portfolioTotal: p.total, quick: sg.research },
-          "Go deeper in Claude",
+          "Research in Claude",
         ),
       );
     }

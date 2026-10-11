@@ -99,7 +99,7 @@ export interface ChatMessage {
   daily?: DailyBrief;
   /** where the card came from, e.g. "Claude (via Atlas MCP)" */
   origin?: string;
-  /** The chat this message belongs to. Messages without one are what Atlas found on its own and live in the Inbox. */
+  /** The chat this message belongs to. Messages without one are what Atlas found on its own and show up on Home and in History. */
   threadId?: string;
 }
 
