@@ -109,3 +109,14 @@ export async function marketFacts(ticker: string): Promise<{ facts: MarketFacts 
   const json = (await res.json()) as { chart?: { result?: Chart[] | null } };
   return factsFromChart(ticker, json.chart?.result?.[0]);
 }
+
+/** Today's price of a US-listed ticker, or null when there isn't one. */
+export async function latestPrice(ticker: string): Promise<number | null> {
+  const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=1d&interval=1d`, {
+    headers: { "User-Agent": "Mozilla/5.0" },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) return null;
+  const price = ((await res.json()) as { chart?: { result?: Chart[] | null } }).chart?.result?.[0]?.meta?.regularMarketPrice;
+  return typeof price === "number" && price > 0 ? price : null;
+}

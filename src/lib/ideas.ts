@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { paperAmount } from "./daily";
 import { costOf, structured, type Usage } from "./llm";
-import { marketFacts, type MarketFacts } from "./market";
+import { latestPrice, marketFacts, type MarketFacts } from "./market";
 import { paperPerformance, type TradeEffect } from "./paper";
 import { paperPortfolio, priceFor } from "./portfolio";
 import { evaluateRules } from "./rules";
@@ -61,9 +61,9 @@ export class BudgetError extends Error {
   }
 }
 
-function ask<S extends z.ZodType>(budget: Budget, opts: { system: string; prompt: string; schema: S; maxTokens: number }) {
+function ask<S extends z.ZodType>(budget: Budget, opts: { system: string; prompt: string; schema: S; maxTokens: number; effort: "low" | "medium" }) {
   if (!budget.allows(opts.system.length + opts.prompt.length, opts.maxTokens)) throw new BudgetError();
-  return structured({ ...opts, model: IDEAS_MODEL, effort: "low", track: budget.track });
+  return structured({ ...opts, model: IDEAS_MODEL, track: budget.track });
 }
 
 // ---------- Words from the model, checked in code ----------
@@ -71,15 +71,19 @@ function ask<S extends z.ZodType>(budget: Budget, opts: { system: string; prompt
 const MONEY_OR_PERCENT = /\$\s?\d|\d\s?(%|percent|per cent)|\b\d+x\b|\b\d[\d,.]*\s?(million|billion|trillion)\b/i;
 
 /** The model is told not to write figures; a sentence that has one anyway is cut, so every number on the page is ours. */
-export function cleanText(text: string): string | null {
-  const kept = text
+export function cleanText(text: string, max = MAX_TEXT): string | null {
+  const sentences = text
     .replace(/\s+/g, " ")
     .trim()
     .split(/(?<=[.!?])\s+/)
-    .filter((sentence) => !MONEY_OR_PERCENT.test(sentence))
-    .join(" ")
-    .slice(0, MAX_TEXT)
-    .trim();
+    .filter((sentence) => !MONEY_OR_PERCENT.test(sentence));
+  // Whole sentences only: a long answer loses its last sentences, never half of one.
+  let kept = "";
+  for (const sentence of sentences) {
+    if (`${kept} ${sentence}`.trim().length > max) break;
+    kept = `${kept} ${sentence}`.trim();
+  }
+  if (!kept && sentences[0]) kept = `${sentences[0].slice(0, max).replace(/\s+\S*$/, "")}…`;
   return kept || null;
 }
 
@@ -103,7 +107,7 @@ const Clarify = z.object({
 const CLARIFY_SYSTEM =
   "You help someone with no finance knowledge find investing ideas. They typed what they want. Decide which follow-up questions you need answered before suggesting anything. " +
   "Ask 3 or 4 short questions, fewer only when what they typed already settles some. Good topics: how long they could leave the money alone; how big a drop they could sit through without panicking; " +
-  "how much they want to put in (skip it if they said); what kinds of companies they want or want to avoid; whether to take what they already own into account. " +
+  "how much they want to put in (always ask unless they said); what kinds of companies they want or want to avoid; whether to take what they already own into account. " +
   "Rules: everyday words only, no jargon (never use volatility, diversification, allocation, yield, exposure); a question is under 14 words; each question has 3 or 4 short answers to tap, each under 6 words, covering the likely cases; " +
   "never ask for a ticker; do not offer a 'you decide' answer, the app adds it.";
 
@@ -117,7 +121,7 @@ export function cleanQuestions(raw: z.infer<typeof Clarify>["questions"]): IdeaQ
 // ---------- Step 2: candidates, then the facts ----------
 
 const Candidates = z.object({
-  budgetUsd: z.number().nullable().describe("The dollar amount the person said they want to invest, or null if they gave none"),
+  budgetUsd: z.number().nullable().describe("Dollars the person wants to invest: their number, or for a range or \"under X\" one number near the middle of it. Null if they gave nothing"),
   overlapMatters: z.boolean().describe("False only if the person said to ignore what they own or to add to it; otherwise true"),
   holdingAreas: z.array(z.object({ ticker: z.string(), area: z.enum(AREAS) })),
   candidates: z.array(z.object({ ticker: z.string(), area: z.enum(AREAS), angle: z.string().describe("Under 10 words: why it fits this person") })),
@@ -156,7 +160,7 @@ function tableRow(f: MarketFacts, c: { area: string; angle: string }, heldNow: n
     `1 month ${moved(f.move1m)}, 6 months ${moved(f.move6m)}`,
     `${pct(f.belowHigh)} below its yearly high`,
     `swings ${f.swings}`,
-    f.yield ? "pays dividends" : "no dividend",
+    f.yield ? `pays about ${pct(f.yield)} a year in dividends` : "no dividend",
     `they own ${pct(heldNow)}; same area ${pct(areaNow)}`,
     c.angle,
   ].join(" | ");
@@ -242,9 +246,11 @@ export function simulateBuy(
     problems.push(`That would make ${ticker} ${pct(afterShare)} of your portfolio, past your ${pct(limit)} limit for one stock.`);
   }
 
-  const before = new Set(evaluateRules(p, rules).map((h) => h.message.title));
+  // A cash warning is the same warning with a new percentage, so it is matched by its rule, not its title.
+  const same = (h: ReturnType<typeof evaluateRules>[number]) => (h.rule.kind === "idle_cash" ? h.rule.id : h.message.title);
+  const before = new Set(evaluateRules(p, rules).map(same));
   const flags = evaluateRules(after, rules)
-    .filter((h) => h.rule.kind !== "concentration" && !before.has(h.message.title))
+    .filter((h) => h.rule.kind !== "concentration" && !before.has(same(h)))
     .map((h) => h.message.title ?? "");
 
   const room = buy.kind === "stock" ? limit * total - heldValue : Infinity;
@@ -289,6 +295,7 @@ export async function startIdeas(prompt: string, send: Send): Promise<{ id: stri
       prompt: `What they typed: "${prompt}"\nWhat they own: ${p ? oneLine(p) : "unknown"}`,
       schema: Clarify,
       maxTokens: 700,
+      effort: "low",
     });
     questions = cleanQuestions(out.questions);
   } catch (e) {
@@ -336,7 +343,8 @@ async function work(session: IdeaSession, answers: string[], send: Send, id: str
     system: CANDIDATES_SYSTEM,
     prompt: `${talk}\nWhat they own: ${oneLine(p)}`,
     schema: Candidates,
-    maxTokens: 1200,
+    maxTokens: 1500,
+    effort: "medium",
   });
   const areaOf = new Map(found.holdingAreas.map((h) => [h.ticker.toUpperCase(), h.area as string]));
   const seen = new Set<string>();
@@ -383,10 +391,11 @@ async function work(session: IdeaSession, answers: string[], send: Send, id: str
         system: WRITE_UP_SYSTEM,
         prompt: `${talk}\nWhat they own: ${oneLine(p)}\n\nCandidates (ticker | name | type | area | recent moves | vs yearly high | swings | dividends | overlap | why picked):\n${kept.map((k) => tableRow(k.facts, k.c, k.heldNow, k.areaNow)).join("\n")}`,
         schema: WriteUp,
-        maxTokens: 1800,
+        maxTokens: 2500,
+        effort: "medium",
       });
       ideas = build(out.ideas, kept, p, s.rules, found.budgetUsd);
-      summary = cleanText(out.summary) ?? (ideas.length ? "Here is what stood out." : "Nothing here was convincing enough to suggest.");
+      summary = cleanText(out.summary, 450) ?? (ideas.length ? "Here is what stood out." : "Nothing here was convincing enough to suggest.");
     } catch (e) {
       console.error("Ideas: the write-up failed", e);
       summary = "Atlas checked the candidates but couldn't finish writing them up. Try again in a minute.";
@@ -449,13 +458,16 @@ export function build(
 
 // ---------- Trying an idea on paper ----------
 
+/** The market price the idea was judged on; the broker's own quote only when that can't be had. */
+const currentPrice = async (ticker: string) => (await latestPrice(ticker).catch(() => null)) ?? (await priceFor(ticker).catch(() => null));
+
 async function inspect(id: string, ticker: string, dollars: number) {
   const { session } = await ideasMessage(id);
   const idea = session.ideas.find((i) => i.ticker === ticker);
   if (!idea) throw new Error("That idea isn't on this page.");
-  const [p, s, live] = await Promise.all([paperPortfolio(), readStore(), priceFor(ticker).catch(() => null)]);
-  const preview = simulateBuy(p, s.rules, { ticker, name: idea.name, kind: idea.kind, price: live ?? idea.price, dollars });
-  return { idea, preview };
+  const [p, s, live] = await Promise.all([paperPortfolio(), readStore(), currentPrice(ticker)]);
+  const price = live ?? idea.price;
+  return { idea, price, preview: simulateBuy(p, s.rules, { ticker, name: idea.name, kind: idea.kind, price, dollars }) };
 }
 
 /** What the portfolio would look like after the paper order. Nothing is saved. */
@@ -472,10 +484,10 @@ export async function acceptIdea(id: string, ticker: string, dollars: number): P
   placing.add(key);
   try {
     const amount = Math.round(dollars * 100) / 100;
-    const { idea, preview } = await inspect(id, ticker, amount);
+    const { idea, price, preview } = await inspect(id, ticker, amount);
     if (idea.trade) throw new Error("This idea is already in your paper account.");
     if (preview.problems.length) throw new Error(preview.problems[0]);
-    const trade = await executeApprovedTrade(ticker, "BUY", amount, { forcePaper: true });
+    const trade = await executeApprovedTrade(ticker, "BUY", amount, { forcePaper: true, price });
     await updateStore((s) => {
       const target = s.messages.find((m) => m.id === id)?.ideas?.ideas.find((i) => i.ticker === ticker);
       if (target) target.trade = { id: trade.id, dollars: trade.dollars, price: trade.price, at: trade.createdAt };
@@ -506,7 +518,7 @@ export async function trackedIdeas(): Promise<{ tracked: TrackedIdea[]; total: n
   const prices: Record<string, number> = {};
   await Promise.all(
     [...new Set(placed.map((x) => x.idea.ticker))].map(async (t) => {
-      const price = await priceFor(t).catch(() => null);
+      const price = await currentPrice(t);
       if (price) prices[t] = price;
     }),
   );

@@ -35,14 +35,16 @@ export async function executeApprovedTrade(
   ticker: string,
   side: "BUY" | "SELL",
   dollars: number,
-  opts: { forcePaper?: boolean } = {},
+  /** `price` only applies to a paper trade: the price the caller already showed the user. */
+  opts: { forcePaper?: boolean; price?: number } = {},
 ): Promise<TradeRecord> {
   ticker = ticker.toUpperCase().trim();
   if (!(dollars > 0) || !Number.isFinite(dollars)) throw new Error("Trade amount must be more than $0.");
   const s = await readStore();
-  const price = await priceFor(ticker);
+  const paper = s.mode === "paper" || opts.forcePaper;
+  const price = paper && opts.price ? opts.price : await priceFor(ticker);
 
-  if (s.mode === "paper" || opts.forcePaper) {
+  if (paper) {
     // Daily-run suggestions are paper even in live mode: make sure the simulated book exists first.
     if (!s.paper) await ensurePaperBook(await basePortfolio());
     if (!price) throw new Error(`I couldn't get a price for ${ticker}, so I can't simulate this trade.`);

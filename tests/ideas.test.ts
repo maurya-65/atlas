@@ -43,6 +43,7 @@ test("a sentence with a dollar, percent or multiple in the model's words is cut"
   assert.equal(cleanText("It holds large steady companies. It returned 12% last year."), "It holds large steady companies.");
   assert.equal(cleanText("You would earn $500 a year."), null);
   assert.equal(cleanText("A broad fund that tracks the S&P 500."), "A broad fund that tracks the S&P 500.");
+  assert.equal(cleanText("One short sentence. Another one that does not fit.", 25), "One short sentence.", "a long answer loses whole sentences, never half of one");
 });
 
 test("the spending limit adds up what calls used and refuses a call that could go past it", () => {
