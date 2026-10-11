@@ -10,6 +10,14 @@ export function atlasPassword(): string {
   return process.env.ATLAS_PASSWORD ?? "";
 }
 
+/** Optional: when set, sign-in asks for this username too. */
+export function atlasUsername(): string {
+  return process.env.ATLAS_USERNAME ?? "";
+}
+
+/** ATLAS_SHOW_LOGIN=1 prints the username and password under the sign-in form, for a demo copy shared with reviewers. */
+export const showLoginOnPage = () => process.env.ATLAS_SHOW_LOGIN === "1";
+
 /** What the session cookie must hold. Derived from the password, so changing the password signs everyone out. */
 export function sessionToken(password = atlasPassword()): string {
   return createHmac("sha256", password).update("atlas-session-v1").digest("hex");

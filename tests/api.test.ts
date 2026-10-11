@@ -141,3 +141,15 @@ test("sign-in hands out the session cookie only for the right password", async (
   assert.match(cookie, /HttpOnly; SameSite=Lax/);
   assert.doesNotMatch(cookie, /open sesame/);
 });
+
+test("with a username set, sign-in needs both the username and the password", async () => {
+  process.env.ATLAS_PASSWORD = "open sesame";
+  process.env.ATLAS_USERNAME = "reviewer";
+  try {
+    assert.equal((await login(post("/api/login", { password: "open sesame" }))).status, 401);
+    assert.equal((await login(post("/api/login", { username: "someone", password: "open sesame" }))).status, 401);
+    assert.equal((await login(post("/api/login", { username: "reviewer", password: "open sesame" }))).status, 200);
+  } finally {
+    delete process.env.ATLAS_USERNAME;
+  }
+});

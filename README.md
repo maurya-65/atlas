@@ -72,6 +72,8 @@ Set these in `.env.local`. `.env.example` has the same list with comments.
 | `SNAPTRADE_BROKER` | Optional. Opens the connection portal on one broker, e.g. `ALPACA-PAPER`. |
 | `SEC_USER_AGENT` | Optional contact string, which SEC EDGAR asks for. |
 | `ATLAS_PASSWORD` | Puts the app behind a sign-in. Optional locally, required when hosted. |
+| `ATLAS_USERNAME` | Optional: sign-in asks for this username too. |
+| `ATLAS_SHOW_LOGIN` | `1` prints the username and password under the sign-in form, for a demo copy shared with reviewers. |
 | `CRON_SECRET`, `KV_REST_API_URL`, `KV_REST_API_TOKEN` | Hosted only. See [Deploying to Vercel](#deploying-to-vercel). |
 | `ATLAS_APP_URL` | The deployment's address, used in the notes the MCP server gives Claude. Default `http://localhost:3000`. |
 
