@@ -114,7 +114,7 @@ export default function MorningCheck({ atlas }: Pick<ViewProps, "atlas">) {
                 <thead>
                   <tr>
                     <Th>Stock</Th>
-                    <Th>Share of portfolio</Th>
+                    <Th className="hidden sm:table-cell">Share of portfolio</Th>
                     <Th>Last researched</Th>
                   </tr>
                 </thead>
@@ -126,9 +126,9 @@ export default function MorningCheck({ atlas }: Pick<ViewProps, "atlas">) {
                           {w.ticker}
                           {i === 0 && daily.depth > 0 && <Badge variant="soft">Next</Badge>}
                         </div>
-                        {w.name && <div className="max-w-52 truncate text-xs text-muted-foreground">{w.name}</div>}
+                        {w.name && <div className="max-w-28 truncate text-xs text-muted-foreground sm:max-w-52">{w.name}</div>}
                       </Td>
-                      <Td className="tabular-nums">{pct(w.weight, 0)}</Td>
+                      <Td className="hidden tabular-nums sm:table-cell">{pct(w.weight, 0)}</Td>
                       <Td className="text-muted-foreground">{w.lastResearchedAt ? timeAgo(w.lastResearchedAt) : "never"}</Td>
                     </Tr>
                   ))}

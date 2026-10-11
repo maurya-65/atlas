@@ -65,7 +65,7 @@ export default function PerformanceTab({ data }: { data: PaperData | null }) {
                 <tr>
                   <Th>Trade</Th>
                   <Th className="text-right">Amount</Th>
-                  <Th className="text-right">Price then</Th>
+                  <Th className="hidden text-right sm:table-cell">Price then</Th>
                   <Th className="text-right">Price now</Th>
                   <Th className="text-right">Effect</Th>
                 </tr>
@@ -80,7 +80,7 @@ export default function PerformanceTab({ data }: { data: PaperData | null }) {
                       <div className="text-xs text-muted-foreground">{formatWhen(t.createdAt)}</div>
                     </Td>
                     <Td className="text-right tabular-nums">{money(t.dollars)}</Td>
-                    <Td className="text-right text-muted-foreground tabular-nums">{money(t.priceThen)}</Td>
+                    <Td className="hidden text-right text-muted-foreground tabular-nums sm:table-cell">{money(t.priceThen)}</Td>
                     <Td className="text-right tabular-nums">{money(t.priceNow)}</Td>
                     <Td className="text-right font-medium tabular-nums">
                       {signedMoney(t.effect)}

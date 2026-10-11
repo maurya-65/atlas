@@ -101,8 +101,8 @@ export default function PaperTab({ data, mode, onReset }: Props) {
                 <thead>
                   <tr>
                     <Th>Stock</Th>
-                    <Th className="text-right">Shares</Th>
-                    <Th className="text-right">Avg cost</Th>
+                    <Th className="hidden text-right sm:table-cell">Shares</Th>
+                    <Th className="hidden text-right sm:table-cell">Avg cost</Th>
                     <Th className="text-right">Price now</Th>
                     <Th className="text-right">Value</Th>
                   </tr>
@@ -112,10 +112,10 @@ export default function PaperTab({ data, mode, onReset }: Props) {
                     <Tr key={p.ticker}>
                       <Td>
                         <div className="font-semibold">{p.ticker}</div>
-                        <div className="max-w-44 truncate text-xs text-muted-foreground">{p.name}</div>
+                        <div className="max-w-28 truncate text-xs text-muted-foreground sm:max-w-44">{p.name}</div>
                       </Td>
-                      <Td className="text-right tabular-nums">{p.units.toFixed(p.units < 10 ? 4 : 2)}</Td>
-                      <Td className="text-right text-muted-foreground tabular-nums">{money(p.avgCost)}</Td>
+                      <Td className="hidden text-right tabular-nums sm:table-cell">{p.units.toFixed(p.units < 10 ? 4 : 2)}</Td>
+                      <Td className="hidden text-right text-muted-foreground tabular-nums sm:table-cell">{money(p.avgCost)}</Td>
                       <Td className="text-right tabular-nums">{money(p.price)}</Td>
                       <Td className="text-right tabular-nums">{money(p.value, 0)}</Td>
                     </Tr>
