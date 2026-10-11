@@ -44,6 +44,7 @@ function fresh(): Store {
     selectedAccountId: null,
     mode: "paper",
     interests: [],
+    watchlist: [],
     rules: DEFAULT_RULES.map((r) => ({ ...r, id: randomUUID(), createdAt: now })),
     messages: [
       {
@@ -53,7 +54,7 @@ function fresh(): Store {
         text:
           "Hi, I'm Atlas. I watch your real brokerage account, read public news, SEC filings and government notices about the companies you own or care about, and tell you when something matters.\n\n" +
           "I never trade on my own. Anything that needs a decision shows up as a card with my recommendation, and you choose. Right now you're in **paper mode**: every trade is simulated and no real money moves.\n\n" +
-          "Connect your brokerage under Settings, then open Chat to ask a question, research one of your stocks or try a **what-if**. Things I find on my own, like news about your holdings, land in this Inbox.",
+          "Connect your brokerage under Settings, then ask a question in Chat or start a research from the Research page. Whatever I find on my own, like news about your holdings, shows up on Home and in History.",
       },
     ],
     paper: null,

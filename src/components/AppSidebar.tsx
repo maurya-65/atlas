@@ -1,46 +1,46 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
-import { CalendarIcon, DashboardIcon, GlobeIcon, InboxIcon, ListChecksIcon, MessageIcon, PlugIcon, ShieldIcon, XIcon } from "./icons";
+import { ClockIcon, DashboardIcon, EyeIcon, GlobeIcon, InboxIcon, MessageIcon, PieIcon, PlugIcon, SearchIcon, XIcon } from "./icons";
 import { Button, cn } from "./ui";
 import { VIEWS, viewHref, type View } from "./views";
 
 const ICONS: Record<View, ReactNode> = {
+  home: <DashboardIcon />,
+  portfolio: <PieIcon />,
+  research: <SearchIcon />,
   chat: <MessageIcon />,
-  inbox: <InboxIcon />,
-  overview: <DashboardIcon />,
-  daily: <CalendarIcon />,
-  rules: <ShieldIcon />,
-  claude: <ListChecksIcon />,
+  decisions: <InboxIcon />,
+  watching: <EyeIcon />,
+  history: <ClockIcon />,
   settings: <PlugIcon />,
 };
 
-const GROUPS: { id: "agent" | "setup"; label: string }[] = [
-  { id: "agent", label: "Your agent" },
-  { id: "setup", label: "Setup" },
+// The sections follow the order of the work: look, understand, decide, review.
+const GROUPS: { label: string; views: View[] }[] = [
+  { label: "Your money", views: ["home", "portfolio"] },
+  { label: "Understand", views: ["research", "chat"] },
+  { label: "Decide and watch", views: ["decisions", "watching"] },
+  { label: "Review", views: ["history"] },
+  { label: "Setup", views: ["settings"] },
 ];
 
 const EYEBROW = "text-[11px] font-medium tracking-wider text-sidebar-foreground/50 uppercase";
 
-/** Brand and navigation only. Money mode and the brokerage live under Settings. */
-function SidebarBody({
-  view,
-  chatHref,
-  openDecisions,
-  onNavigate,
-  onClose,
-}: {
+interface BodyProps {
   view: View;
   /** Where "Chat" goes: the latest chat, or a new one */
   chatHref: string;
   openDecisions: number;
   onNavigate?: () => void;
   onClose?: () => void;
-}) {
+}
+
+function SidebarBody({ view, chatHref, openDecisions, onNavigate, onClose }: BodyProps) {
   return (
     <div data-slot="sidebar-inner" className="flex size-full flex-col text-sidebar-foreground">
       <div data-slot="sidebar-header" className="flex items-center justify-between gap-2 p-2">
-        <a href={viewHref("overview")} onClick={onNavigate} className="flex h-12 min-w-0 items-center gap-2.5 rounded-xl p-2">
+        <a href={viewHref("home")} onClick={onNavigate} className="flex h-12 min-w-0 items-center gap-2.5 rounded-xl p-2">
           <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-full bg-white text-black [&>svg]:size-5">
             <GlobeIcon />
           </span>
@@ -58,18 +58,19 @@ function SidebarBody({
       </div>
 
       <nav data-slot="sidebar-content" aria-label="Sections" className="no-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-auto">
-        {GROUPS.map((g) => (
-          <div key={g.id} data-slot="sidebar-group" className="relative flex w-full min-w-0 flex-col p-2">
+        {GROUPS.map((group) => (
+          <div key={group.label} data-slot="sidebar-group" className="relative flex w-full min-w-0 flex-col p-2">
             <div data-slot="sidebar-group-label" className={cn("flex h-8 shrink-0 items-center px-2", EYEBROW)}>
-              {g.label}
+              {group.label}
             </div>
             <ul data-slot="sidebar-menu" className="flex w-full min-w-0 flex-col gap-1">
-              {VIEWS.filter((v) => v.group === g.id).map((v) => {
-                const active = v.id === view;
+              {group.views.map((id) => {
+                const info = VIEWS.find((v) => v.id === id)!;
+                const active = id === view;
                 return (
-                  <li key={v.id} data-slot="sidebar-menu-item" className="relative">
+                  <li key={id} data-slot="sidebar-menu-item" className="relative">
                     <a
-                      href={v.id === "chat" ? chatHref : viewHref(v.id)}
+                      href={id === "chat" ? chatHref : viewHref(id)}
                       onClick={onNavigate}
                       aria-current={active ? "page" : undefined}
                       data-slot="sidebar-menu-button"
@@ -80,11 +81,11 @@ function SidebarBody({
                           : "text-muted-foreground hover:bg-white/[0.05] hover:text-foreground",
                       )}
                     >
-                      {ICONS[v.id]}
-                      <span className="truncate">{v.label}</span>
-                      {v.id === "inbox" && openDecisions > 0 && (
+                      {ICONS[id]}
+                      <span className="truncate">{info.label}</span>
+                      {id === "decisions" && openDecisions > 0 && (
                         <span className="ml-auto inline-flex h-5 shrink-0 items-center rounded-full border border-white/15 bg-white/[0.1] px-2 text-[11px] font-medium text-foreground">
-                          {openDecisions} to decide
+                          {openDecisions}
                         </span>
                       )}
                     </a>
@@ -99,23 +100,15 @@ function SidebarBody({
   );
 }
 
-export default function AppSidebar({
-  view,
-  chatHref,
-  openDecisions,
-  open,
-  mobileOpen,
-  onCloseMobile,
-}: {
-  view: View;
-  chatHref: string;
-  openDecisions: number;
+interface Props extends Omit<BodyProps, "onNavigate" | "onClose"> {
   /** Desktop: the sidebar column is showing */
   open: boolean;
   /** Narrow windows: the sidebar is showing as an overlay */
   mobileOpen: boolean;
   onCloseMobile: () => void;
-}) {
+}
+
+export default function AppSidebar({ open, mobileOpen, onCloseMobile, ...body }: Props) {
   useEffect(() => {
     if (!mobileOpen) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onCloseMobile();
@@ -125,7 +118,6 @@ export default function AppSidebar({
 
   return (
     <>
-      {/* Desktop: its own column of the shell. */}
       <div
         id="atlas-sidebar"
         data-slot="sidebar-container"
@@ -133,16 +125,15 @@ export default function AppSidebar({
         className={cn("hidden h-full shrink-0 overflow-hidden transition-[width] duration-200 ease-linear md:block", open ? "w-60" : "w-0")}
       >
         <div className="h-full w-60 p-2">
-          <SidebarBody view={view} chatHref={chatHref} openDecisions={openDecisions} />
+          <SidebarBody {...body} />
         </div>
       </div>
 
-      {/* Narrow windows: the same sidebar as an overlay. */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Menu">
           <button type="button" aria-label="Close menu" onClick={onCloseMobile} className="absolute inset-0 cursor-default bg-black/60" />
           <div className="glass-strong absolute inset-y-0 left-0 w-72 max-w-[85vw] p-2">
-            <SidebarBody view={view} chatHref={chatHref} openDecisions={openDecisions} onNavigate={onCloseMobile} onClose={onCloseMobile} />
+            <SidebarBody {...body} onNavigate={onCloseMobile} onClose={onCloseMobile} />
           </div>
         </div>
       )}

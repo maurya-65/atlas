@@ -1,69 +1,91 @@
-/** The sections of the single Atlas page. The URL hash picks one (for example /#inbox); a chat is /#chat/<id>. */
-export type View = "chat" | "inbox" | "overview" | "daily" | "rules" | "claude" | "settings";
+import { useSyncExternalStore } from "react";
 
-/** In sidebar order. The landing view is the Portfolio (see viewFromHash). */
-export const VIEWS: { id: View; label: string; title: string; description: string; group: "agent" | "setup" }[] = [
-  {
-    id: "overview",
-    label: "Portfolio",
-    title: "Portfolio",
-    description: "What you own, in plain numbers.",
-    group: "agent",
-  },
-  {
-    id: "chat",
-    label: "Chat",
-    title: "Chat",
-    description: "Ask questions, research a stock or try a what-if.",
-    group: "agent",
-  },
-  {
-    id: "inbox",
-    label: "Inbox",
-    title: "Inbox",
-    description: "What Atlas found on its own, and trades waiting for your yes or no.",
-    group: "agent",
-  },
-  {
-    id: "daily",
-    label: "Daily run",
-    title: "Daily run",
-    description: "Atlas checks your portfolio once a day and leaves a brief in your Inbox.",
-    group: "agent",
-  },
-  {
-    id: "rules",
-    label: "Rules & topics",
-    title: "Rules & topics",
-    description: "What Atlas watches for, and the limits it can never cross.",
-    group: "setup",
-  },
-  {
-    id: "claude",
-    label: "Claude setup",
-    title: "Claude setup",
-    description: "Add the Chrome extension so Deep Research in Claude comes back here by itself.",
-    group: "setup",
-  },
-  {
-    id: "settings",
-    label: "Settings",
-    title: "Settings",
-    description: "Brokerage, paper or real money, and Claude.",
-    group: "setup",
-  },
+/**
+ * The sections of the single Atlas page. The URL hash picks one, and some sections have a second level:
+ *   #home  #portfolio[/holdings|performance|paper|orders]  #research[/new|watchlist|scenarios|<TICKER>]
+ *   #decisions  #watching  #chat[/<id>]  #history  #settings[/<section>]
+ */
+export type View = "home" | "portfolio" | "research" | "decisions" | "watching" | "chat" | "history" | "settings";
+
+export interface ViewInfo {
+  id: View;
+  label: string;
+  title: string;
+  /** One line under the title: what this page is for */
+  description: string;
+}
+
+/** In sidebar order. The landing view is Home. */
+export const VIEWS: ViewInfo[] = [
+  { id: "home", label: "Home", title: "Home", description: "What needs you, what changed, and what Atlas is doing right now." },
+  { id: "portfolio", label: "Portfolio", title: "Portfolio", description: "What you own, how it is doing, and your paper account." },
+  { id: "research", label: "Research", title: "Research", description: "Everything Atlas knows about a company. Start a new research here." },
+  { id: "decisions", label: "Decisions", title: "Decisions", description: "Trades and suggestions waiting for your yes or no, and what you decided before." },
+  { id: "watching", label: "Watching", title: "Watching", description: "What Atlas keeps an eye on for you, and when it checks." },
+  { id: "chat", label: "Chat", title: "Chat", description: "Ask a question about your portfolio or an investing term." },
+  { id: "history", label: "History", title: "History", description: "Everything Atlas has done, newest first." },
+  { id: "settings", label: "Settings", title: "Settings", description: "Brokerage, paper or real money, safety limits, Claude and memory." },
 ];
 
-export function viewFromHash(hash: string): View {
-  const id = hash.replace(/^#/, "").split("/")[0];
-  return VIEWS.find((v) => v.id === id)?.id ?? "overview";
+export const PORTFOLIO_TABS = ["holdings", "performance", "paper", "orders"] as const;
+export type PortfolioTab = (typeof PORTFOLIO_TABS)[number];
+
+export const SETTINGS_SECTIONS = ["brokerage", "safety", "claude", "memory", "reset"] as const;
+export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
+
+/** Research second level: a fixed page, or a company when it looks like a ticker. */
+export type ResearchSub = { page: "companies" | "new" | "watchlist" | "scenarios" } | { page: "company"; ticker: string };
+
+export interface Route {
+  view: View;
+  /** Everything after the first "/", or null */
+  sub: string | null;
 }
 
-/** The chat a hash like #chat/<id> points at. */
-export function threadFromHash(hash: string): string | null {
-  return /^#chat\/([A-Za-z0-9-]+)$/.exec(hash)?.[1] ?? null;
+const TICKER = /^[A-Za-z.\-]{1,10}$/;
+
+export function routeFromHash(hash: string): Route {
+  const [first = "", ...rest] = hash.replace(/^#/, "").split("/");
+  const view = VIEWS.find((v) => v.id === first)?.id ?? "home";
+  return { view, sub: rest.length ? rest.join("/") : null };
 }
 
-export function viewHref(view: View): string {
-  return `#${view}`;
+export function portfolioTab(route: Route): PortfolioTab {
+  return PORTFOLIO_TABS.find((t) => t === route.sub) ?? "holdings";
+}
+
+export function settingsSection(route: Route): SettingsSection | null {
+  return SETTINGS_SECTIONS.find((s) => s === route.sub) ?? null;
+}
+
+export function researchSub(route: Route): ResearchSub {
+  const sub = route.sub ?? "";
+  if (sub === "new" || sub === "watchlist" || sub === "scenarios") return { page: sub };
+  if (TICKER.test(sub)) return { page: "company", ticker: sub.toUpperCase() };
+  return { page: "companies" };
+}
+
+/** The chat a route points at, for #chat/<id>. */
+export function threadFromRoute(route: Route): string | null {
+  return route.view === "chat" && route.sub && /^[A-Za-z0-9-]+$/.test(route.sub) ? route.sub : null;
+}
+
+export const homeHref = "#home";
+export const companyHref = (ticker: string) => `#research/${ticker.toUpperCase()}`;
+export const portfolioHref = (tab: PortfolioTab = "holdings") => (tab === "holdings" ? "#portfolio" : `#portfolio/${tab}`);
+export const viewHref = (view: View) => `#${view}`;
+
+/** The current URL hash, kept in step with the address bar. */
+export function useHash(): string {
+  return useSyncExternalStore(subscribeHash, () => window.location.hash, () => "");
+}
+
+function subscribeHash(cb: () => void) {
+  window.addEventListener("hashchange", cb);
+  return () => window.removeEventListener("hashchange", cb);
+}
+
+/** Changing the hash is how the page switches section; it lives here so components don't assign to `window` themselves. */
+export function goTo(hash: string) {
+  window.location.hash = hash;
 }

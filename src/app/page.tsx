@@ -1,332 +1,55 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { isResearchableStock, type Mode, type ResearchEvent } from "@/lib/types";
-import { buildClaudePrompt, claudeUrl } from "@/lib/handoff";
-import TopBar from "@/components/TopBar";
+import { useCallback, useState } from "react";
+import { ActivityPill, Toasts } from "@/components/Activity";
 import AppSidebar from "@/components/AppSidebar";
-import Composer from "@/components/Composer";
-import Inbox from "@/components/Inbox";
-import { ChatStart, ThreadList } from "@/components/Chat";
-import { MessageView, Thinking } from "@/components/Messages";
-import AgentRoom from "@/components/AgentRoom";
-import { DailyView, OverviewView, type ViewProps } from "@/components/Sections";
-import RulesView from "@/components/RulesView";
-import ClaudeSetupView from "@/components/ClaudeSetupView";
-import SettingsView from "@/components/SettingsView";
-import { api, streamApi, type AppState } from "@/components/format";
-import { Button } from "@/components/ui";
+import ChatView from "@/components/ChatView";
+import DecisionsView from "@/components/DecisionsView";
+import HistoryView from "@/components/HistoryView";
+import HomeView from "@/components/HomeView";
+import { pendingDecisions } from "@/components/derive";
 import { XIcon } from "@/components/icons";
-import { VIEWS, threadFromHash, viewFromHash } from "@/components/views";
+import { Thinking } from "@/components/Messages";
+import PortfolioView from "@/components/PortfolioView";
+import ResearchView from "@/components/ResearchView";
+import SettingsView from "@/components/SettingsView";
+import TopBar from "@/components/TopBar";
+import { Button } from "@/components/ui";
+import { useAtlas, type Atlas } from "@/components/useAtlas";
+import type { ViewProps } from "@/components/viewProps";
+import { routeFromHash, useHash, VIEWS } from "@/components/views";
+import WatchingView from "@/components/WatchingView";
 
-function subscribeHash(cb: () => void) {
-  window.addEventListener("hashchange", cb);
-  return () => window.removeEventListener("hashchange", cb);
-}
+const PAGES = {
+  home: HomeView,
+  portfolio: PortfolioView,
+  research: ResearchView,
+  decisions: DecisionsView,
+  watching: WatchingView,
+  history: HistoryView,
+  settings: SettingsView,
+} as const;
 
-/** Changing the hash is how the page switches section; it lives out here so the page's own code doesn't assign to `window`. */
-function goTo(hash: string) {
-  window.location.hash = hash;
-}
-
-export default function Home() {
-  const [state, setState] = useState<AppState | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  /** What the research agents are saying right now (streamed from the server) */
-  const [liveEvents, setLiveEvents] = useState<ResearchEvent[]>([]);
-  /** Chat and Inbox scroll inside the page; a chat follows its newest message, the Inbox stays at the top. */
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const composerRef = useRef<HTMLTextAreaElement>(null);
-  const focusComposer = useRef(false);
-
-  // Which section is showing comes from the URL hash; the sidebar is open on wide windows and an overlay on narrow ones.
-  const hash = useSyncExternalStore(
-    subscribeHash,
-    () => window.location.hash,
-    () => "",
-  );
-  const view = viewFromHash(hash);
-  const activeChat = threadFromHash(hash);
+export default function Page() {
+  const loading = useAtlas();
+  const route = routeFromHash(useHash());
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenu, setMobileMenu] = useState(false);
   const closeMobileMenu = useCallback(() => setMobileMenu(false), []);
   const toggleSidebar = () => {
-    if (window.matchMedia("(min-width: 768px)").matches) setSidebarOpen((o) => !o);
-    else setMobileMenu((o) => !o);
+    if (window.matchMedia("(min-width: 768px)").matches) setSidebarOpen((open) => !open);
+    else setMobileMenu((open) => !open);
   };
 
-  const refresh = useCallback(async () => {
-    try {
-      const s = await api<AppState>("/api/state");
-      setState(s);
-      setLoadError(null);
-    } catch (e) {
-      setLoadError((e as Error).message);
-    }
-  }, []);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data load
-    refresh();
-    const url = new URL(window.location.href);
-    if (url.searchParams.get("connected")) {
-      setNotice("Brokerage connected through SnapTrade. Atlas can now see your real holdings.");
-      url.searchParams.delete("connected");
-      window.history.replaceState(null, "", url.pathname + url.search + url.hash);
-    }
-  }, [refresh]);
-
-  // The Atlas Chrome extension runs Claude Deep Research in another tab and reports back with these events.
-  useEffect(() => {
-    const started = (e: Event) => {
-      const t = (e as CustomEvent<{ ticker?: string }>).detail?.ticker || "this stock";
-      setNotice(`Claude opened in a new tab with Research mode on and the prompt filled in for ${t}. Press send there and the card will appear in your Inbox when it finishes.`);
-    };
-    const imported = (e: Event) => {
-      const t = (e as CustomEvent<{ ticker?: string }>).detail?.ticker || "your stock";
-      setNotice(`Claude’s Deep Research on ${t} is in. See the card in your Inbox.`);
-      refresh();
-    };
-    const progress = (e: Event) => {
-      const d = (e as CustomEvent<{ ticker?: string; text?: string }>).detail;
-      if (d?.text) setNotice(`Claude${d.ticker ? ` · ${d.ticker}` : ""}: ${d.text}`);
-    };
-    const failed = (e: Event) => setError((e as CustomEvent<{ error?: string }>).detail?.error ?? "Claude Deep Research didn’t finish.");
-    window.addEventListener("atlas:claude-started", started);
-    window.addEventListener("atlas:imported", imported);
-    window.addEventListener("atlas:claude-status", progress);
-    window.addEventListener("atlas:claude-error", failed);
-    return () => {
-      window.removeEventListener("atlas:claude-started", started);
-      window.removeEventListener("atlas:imported", imported);
-      window.removeEventListener("atlas:claude-status", progress);
-      window.removeEventListener("atlas:claude-error", failed);
-    };
-  }, [refresh]);
-
-  // Research posts cards while it runs (a portfolio review posts one per stock), so poll while busy.
-  useEffect(() => {
-    if (!busy) return;
-    const id = setInterval(refresh, 6000);
-    return () => clearInterval(id);
-  }, [busy, refresh]);
-
-  // Scheduled daily runs post cards without a click, so quietly check for them (never while the tab is hidden).
-  const dailyRunning = Boolean(state?.daily?.running);
-  useEffect(() => {
-    if (busy) return;
-    const id = setInterval(() => {
-      if (document.visibilityState === "visible") refresh();
-    }, dailyRunning ? 6000 : 30000);
-    return () => clearInterval(id);
-  }, [busy, dailyRunning, refresh]);
-
-  const chat = state?.messages.filter((m) => m.threadId && m.threadId === activeChat) ?? [];
-  // A "user" message is always a chat turn (older ones were saved before chats had ids), never something Atlas found.
-  const inbox = state?.messages.filter((m) => !m.threadId && m.kind !== "user") ?? [];
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (el) el.scrollTop = view === "chat" && chat.length > 0 ? el.scrollHeight : 0;
-  }, [view, activeChat, chat.length, busy, liveEvents.length]);
-
-  // "Ask Atlas" in the header: go to Chat and put the cursor in the box.
-  useEffect(() => {
-    if (view === "chat" && focusComposer.current) {
-      focusComposer.current = false;
-      composerRef.current?.focus();
-    }
-  }, [view]);
-  const askAtlas = () => {
-    if (view === "chat") composerRef.current?.focus();
-    else {
-      focusComposer.current = true;
-      goTo("chat");
-    }
-  };
-
-  /** Run something slow with a calm progress label, then refetch. */
-  const run = useCallback(
-    async (label: string, fn: () => Promise<unknown>) => {
-      setBusy(label);
-      setError(null);
-      try {
-        await fn();
-      } catch (e) {
-        setError((e as Error).message);
-      } finally {
-        await refresh();
-        setBusy(null);
-      }
-    },
-    [refresh],
-  );
-
-  /** Stream a long job, showing the agents' conversation in the live room while it runs. */
-  const stream = async (path: string, body: unknown) => {
-    setLiveEvents([]);
-    try {
-      await streamApi<ResearchEvent>(path, body, (e) => setLiveEvents((prev) => [...prev, e]));
-    } finally {
-      setLiveEvents([]);
-    }
-  };
-
-  /**
-   * Say something in a chat, then let Atlas act on it. In the middle of a chat it carries on there; from
-   * anywhere else (the portfolio page, a card in the Inbox) it opens a new chat.
-   */
-  const inChat = (said: string, label: string, work: (threadId: string) => Promise<unknown>) => {
-    const threadId = view === "chat" && activeChat ? activeChat : crypto.randomUUID();
-    goTo(`chat/${threadId}`);
-    return run(label, async () => {
-      await api("/api/threads", { action: "say", threadId, text: said });
-      await refresh();
-      await work(threadId);
-    });
-  };
-
-  // The what-if agent runs in stages; show which stage is likely running so the wait feels explained.
-  const stageTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const clearStageTimers = () => {
-    stageTimers.current.forEach(clearTimeout);
-    stageTimers.current = [];
-  };
-  useEffect(() => clearStageTimers, []);
-
-  const runScenario = (said: string, scenario: string, label: string) =>
-    inChat(said, label, async (threadId) => {
-      clearStageTimers();
-      stageTimers.current = [
-        setTimeout(() => setBusy("Researcher agents are reading news and government notices…"), 8000),
-        setTimeout(() => setBusy("Synthesizer is mapping it onto your stocks…"), 25000),
-      ];
-      try {
-        await api("/api/scenario", { scenario, threadId });
-      } finally {
-        clearStageTimers();
-      }
-    });
-
-  const whatIf = (scenario: string) => runScenario(scenario, scenario, "Planner is breaking the scenario into ways it could spread…");
-
-  /** Sector research runs on the what-if agents: they read what is happening in the sector and map it onto the user's stocks. */
-  const sector = (name: string) =>
-    runScenario(
-      `Research the ${name} sector`,
-      `Recent developments in the ${name} sector: what is happening in it right now, and what does it mean for my stocks?`,
-      `Reading news and government notices about ${name}…`,
-    );
-
-  const ask = (question: string) => inChat(question, "Thinking…", (threadId) => api("/api/chat", { threadId }));
-
-  const research = (ticker: string) =>
-    inChat(`Research ${ticker}`, `${ticker}: nine analysts are reading filings, news and the web…`, (threadId) =>
-      stream("/api/research", { ticker, threadId }),
-    );
-
-  // One request per stock, so a long review never depends on a single connection staying open for minutes.
-  const review = () =>
-    inChat("Review my portfolio", "Reviewing your biggest holdings one by one…", async (threadId) => {
-      const { picks } = await api<{ picks: string[] }>("/api/review", { step: "start", threadId });
-      for (const [i, ticker] of picks.entries()) {
-        setBusy(`Reviewing ${ticker} (${i + 1} of ${picks.length})…`);
-        try {
-          await stream("/api/research", { ticker, threadId, review: { index: i, count: picks.length } });
-        } catch {
-          // One stock failing doesn't stop the review; the summary says which one didn't finish.
-        }
-        await refresh();
-      }
-      if (picks.length) await api("/api/review", { step: "finish", tickers: picks, threadId });
-    });
-
-  const scan = () => {
-    goTo("inbox");
-    return run("Reading filings, news and government notices…", () => api("/api/scan", {}));
-  };
-
-  const runDaily = () => {
-    goTo("inbox");
-    return run("Daily run: checking your portfolio and researching…", () => stream("/api/daily/run", {}));
-  };
-
-  const importReport = async (text: string) => {
-    await api("/api/import", { text });
-    await refresh();
-  };
-
-  const deleteChat = async (threadId: string) => {
-    await api("/api/threads", { action: "delete", threadId });
-    if (threadId === activeChat) goTo("chat");
-    await refresh();
-  };
-
-  /** Prompt link for Claude Deep Research on any ticker, with the user's position filled in. */
-  const claudeLinkFor = (ticker: string) => {
-    const holding = state?.portfolio?.holdings.find((h) => h.ticker === ticker);
-    return claudeUrl(buildClaudePrompt({ ticker, name: holding?.name, holding, portfolioTotal: state?.portfolio?.total }));
-  };
-
-  /** Prompt link for Claude Deep Research on a whole sector, with the user's tickers so Claude can relate it to them. */
-  const claudeSectorLinkFor = (name: string) => {
-    const held = state?.portfolio?.holdings.map((h) => h.ticker).join(", ");
-    return claudeUrl(
-      `Do deep research on the ${name} sector for a beginner investor. Cover what is driving the sector right now, the biggest risks, any upcoming regulation or government action, and the five most important companies with one line on each. ` +
-        (held ? `I hold ${held}; say plainly how this sector affects those positions. ` : "") +
-        "Use recent primary sources (SEC filings, government notices, company reports) and cite them. Use plain words and explain any jargon. This is research, not financial advice.",
-    );
-  };
-
-  const choose = async (messageId: string, optionIndex: number) => {
-    setBusy("Working on it…");
-    setError(null);
-    let next: { research?: string; whatIf?: string } | undefined;
-    try {
-      ({ next } = await api<{ next?: { research?: string; whatIf?: string } }>("/api/action", { messageId, optionIndex }));
-    } finally {
-      await refresh();
-      setBusy(null);
-    }
-    // Research or a what-if chosen on a card runs in a chat.
-    if (next?.research) research(next.research);
-    else if (next?.whatIf) whatIf(next.whatIf);
-  };
-
-  const switchMode = async (mode: Mode, confirm?: string) => {
-    const res = await api<{ ok: boolean; error?: string }>("/api/mode", { mode, confirm });
-    if (res && res.ok === false) throw new Error(res.error ?? "Couldn’t switch mode.");
-    await refresh();
-  };
-
-  const mutate = async (path: string, body: unknown) => {
-    setError(null);
-    try {
-      await api(path, body);
-    } catch (e) {
-      setError((e as Error).message);
-    }
-    await refresh();
-  };
-
-  const reset = async () => {
-    if (busy) return;
-    await mutate("/api/reset", {});
-    setNotice(null);
-    goTo("overview");
-  };
-
+  const { state } = loading;
   if (!state) {
     return (
       <main className="atlas-wash grid flex-1 place-items-center p-8 text-center">
-        {loadError ? (
+        {loading.loadError ? (
           <div className="max-w-md space-y-3">
             <p className="font-semibold">Atlas couldn’t load.</p>
-            <p className="text-sm text-muted-foreground">{loadError}</p>
-            <Button variant="outline" onClick={refresh}>
+            <p className="text-sm text-muted-foreground">{loading.loadError}</p>
+            <Button variant="outline" onClick={loading.refresh}>
               Try again
             </Button>
           </div>
@@ -337,148 +60,61 @@ export default function Home() {
     );
   }
 
-  const openDecisions = inbox.filter((m) => m.kind === "constraint" && !m.resolved).length;
-  const meta = VIEWS.find((v) => v.id === view) ?? VIEWS[0];
-  const isBusy = Boolean(busy);
-  const chatHref = state.threads[0] ? `#chat/${state.threads[0].id}` : "#chat";
-  const tickers = (state.portfolio?.holdings ?? [])
-    .filter((h) => isResearchableStock(h.ticker, h.kind))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 3)
-    .map((h) => h.ticker);
-
-  const viewProps: ViewProps = {
-    state,
-    busy: isBusy,
-    onResearch: research,
-    onScan: scan,
-    onReview: review,
-    onRunDaily: runDaily,
-    onSetDaily: (patch) => mutate("/api/daily", { ...patch, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
-    onImport: importReport,
-    onSetInterests: (interests) => mutate("/api/interests", { interests }),
-    onDeleteRule: (id) => mutate("/api/rules", { action: "delete", id }),
-    onAddRule: async (rule) => {
-      await api("/api/rules", { action: "add", ...rule });
-      await refresh();
-    },
-    onClearMemory: () => mutate("/api/memory", { action: "clear" }),
-    onSelectAccount: (accountId) => mutate("/api/account", { accountId }),
-    onSwitchMode: switchMode,
-    onReset: reset,
-    onSignOut: async () => {
-      await api("/api/logout", {}).catch(() => undefined);
-      window.location.replace("/login");
-    },
-  };
-
-  const BANNER = "glass flex items-start justify-between gap-3 rounded-2xl px-4 py-2.5 text-sm";
-  const banners = (
-    <>
-      {busy && view !== "chat" && view !== "inbox" && (
-        <div className={BANNER} role="status">
-          <Thinking label={busy} />
-        </div>
-      )}
-      {error && (
-        <div className={`${BANNER} border-destructive/40`} role="alert">
-          <span>
-            <span className="font-semibold text-destructive">That didn’t work.</span> {error}
-          </span>
-          <Button variant="ghost" size="xs" onClick={() => setError(null)} aria-label="Dismiss" className="px-1">
-            <XIcon />
-          </Button>
-        </div>
-      )}
-      {notice && (
-        <div className={BANNER} role="status">
-          <span>{notice}</span>
-          <Button variant="ghost" size="xs" onClick={() => setNotice(null)} aria-label="Dismiss" className="px-1">
-            <XIcon />
-          </Button>
-        </div>
-      )}
-    </>
-  );
-
-  /** What is happening right now: the agents talking, or a plain progress line. */
-  const working = busy && (liveEvents.length > 0 ? <AgentRoom events={liveEvents} live /> : <div className="px-1 py-2"><Thinking label={busy} /></div>);
+  const atlas: Atlas = { ...loading, state };
+  const props: ViewProps = { atlas, route };
+  const info = VIEWS.find((v) => v.id === route.view) ?? VIEWS[0];
+  const latestChat = state.threads[0];
 
   return (
     <div data-slot="sidebar-wrapper" className="atlas-wash flex h-dvh w-full overflow-hidden">
-      <AppSidebar view={view} chatHref={chatHref} openDecisions={openDecisions} open={sidebarOpen} mobileOpen={mobileMenu} onCloseMobile={closeMobileMenu} />
+      <AppSidebar
+        view={route.view}
+        chatHref={latestChat ? `#chat/${latestChat.id}` : "#chat"}
+        openDecisions={pendingDecisions(state.messages).length}
+        open={sidebarOpen}
+        mobileOpen={mobileMenu}
+        onCloseMobile={closeMobileMenu}
+      />
       <div
         data-slot="sidebar-inset"
         className={`flex min-w-0 flex-1 flex-col overflow-hidden bg-white/[0.015] md:my-2 md:mr-2 md:rounded-3xl md:border md:border-white/[0.08] ${sidebarOpen ? "" : "md:ml-2"}`}
       >
-        <TopBar title={meta.title} description={meta.description} mode={state.mode} onToggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} onAsk={askAtlas} />
+        <TopBar
+          title={info.title}
+          description={info.description}
+          mode={state.mode}
+          onToggleSidebar={toggleSidebar}
+          sidebarOpen={sidebarOpen}
+          activity={<ActivityPill jobs={atlas.jobs} />}
+        />
 
-        {view === "chat" ? (
-          <main className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden md:flex-row">
-            <ThreadList threads={state.threads} activeId={activeChat} onDelete={deleteChat} />
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-              <div ref={scrollRef} className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-3 sm:px-5" aria-live="polite">
-                <section aria-label="Chat" className="mx-auto flex w-full max-w-3xl min-w-0 flex-col gap-3 py-4">
-                  {chat.length === 0 && !busy ? (
-                    <ChatStart
-                      tickers={tickers}
-                      canReview={tickers.length > 0}
-                      disabled={isBusy}
-                      onAsk={ask}
-                      onResearch={research}
-                      onSector={sector}
-                      onWhatIf={whatIf}
-                      onReview={review}
-                    />
-                  ) : (
-                    chat.map((m) => <MessageView key={m.id} m={m} onChoose={choose} busy={isBusy} />)
-                  )}
-                  {working}
-                </section>
-              </div>
-              <div className="min-w-0 shrink-0 space-y-2 px-3 pt-2 pb-3 sm:px-5">
-                <div className="mx-auto w-full max-w-3xl space-y-2 empty:hidden">{banners}</div>
-                <Composer
-                  onAsk={ask}
-                  onResearch={research}
-                  onSector={sector}
-                  onWhatIf={whatIf}
-                  claudeLinkFor={claudeLinkFor}
-                  claudeSectorLinkFor={claudeSectorLinkFor}
-                  tickers={tickers}
-                  busy={isBusy}
-                  inputRef={composerRef}
-                />
-              </div>
+        {atlas.error && (
+          <div className="px-3 pt-3 sm:px-5">
+            <div role="alert" className="glass mx-auto flex w-full max-w-348 items-start justify-between gap-3 rounded-2xl border-destructive/40 px-4 py-2.5 text-sm">
+              <span>
+                <span className="font-semibold text-destructive">That didn’t work.</span> {atlas.error}
+              </span>
+              <Button variant="ghost" size="xs" onClick={atlas.clearError} aria-label="Dismiss" className="px-1">
+                <XIcon />
+              </Button>
             </div>
-          </main>
-        ) : view === "inbox" ? (
-          <Inbox
-            messages={inbox}
-            busy={isBusy}
-            onChoose={choose}
-            onScan={scan}
-            scrollRef={scrollRef}
-            top={
-              <>
-                {banners}
-                {working}
-              </>
-            }
-          />
+          </div>
+        )}
+
+        {route.view === "chat" ? (
+          <ChatView {...props} />
         ) : (
-          <main key={view} className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+          <main key={route.view} className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
             <div className="mx-auto w-full max-w-348 space-y-4 px-3 py-5 sm:px-5">
-              {banners}
-              {view === "overview" && <OverviewView {...viewProps} />}
-              {view === "daily" && <DailyView {...viewProps} />}
-              {view === "rules" && <RulesView {...viewProps} />}
-              {view === "claude" && <ClaudeSetupView />}
-              {view === "settings" && <SettingsView {...viewProps} />}
+              {(() => {
+                const View = PAGES[route.view];
+                return <View {...props} />;
+              })()}
             </div>
           </main>
         )}
       </div>
+      <Toasts jobs={atlas.jobs} />
     </div>
   );
 }

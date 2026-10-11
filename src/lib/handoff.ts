@@ -66,6 +66,14 @@ export function buildClaudePrompt(c: HandoffContext): string {
   return lines.join("\n");
 }
 
+export function buildSectorPrompt(sector: string, heldTickers: string[]): string {
+  return (
+    `Do deep research on the ${sector} sector for a beginner investor. Cover what is driving the sector right now, the biggest risks, any upcoming regulation or government action, and the five most important companies with one line on each. ` +
+    (heldTickers.length ? `I hold ${heldTickers.join(", ")}; say plainly how this sector affects those positions. ` : "") +
+    "Use recent primary sources (SEC filings, government notices, company reports) and cite them. Use plain words and explain any jargon. This is research, not financial advice."
+  );
+}
+
 export function claudeUrl(prompt: string) {
   return `https://claude.ai/new?q=${encodeURIComponent(prompt)}`;
 }

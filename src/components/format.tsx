@@ -4,6 +4,7 @@ import { Fragment, type ReactNode } from "react";
 export interface AppState {
   mode: Mode;
   interests: string[];
+  watchlist: string[];
   rules: Rule[];
   /** What each rule finds in the portfolio right now; no entries = fine */
   ruleStatus: { id: string; hits: string[] }[];

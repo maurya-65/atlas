@@ -288,6 +288,19 @@ export function Empty({ icon, title, children }: { icon?: ReactNode; title: stri
   );
 }
 
+/** The top of every page: what the page is for, what is going on in it right now, and the main thing to do. */
+export function PageIntro({ what, now, actions }: { what: ReactNode; now?: ReactNode; actions?: ReactNode }) {
+  return (
+    <section className="glass flex flex-wrap items-center gap-x-6 gap-y-3 rounded-2xl px-4 py-3.5 sm:px-5">
+      <div className="min-w-60 flex-1 space-y-0.5 text-sm">
+        <p className="text-muted-foreground">{what}</p>
+        {now && <p className="font-medium">{now}</p>}
+      </div>
+      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+    </section>
+  );
+}
+
 /** Small uppercase heading used inside cards. */
 export function Eyebrow({ className, ...props }: ComponentProps<"h4">) {
   return <h4 className={cn("text-xs font-medium tracking-wider text-muted-foreground uppercase", className)} {...props} />;

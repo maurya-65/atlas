@@ -32,6 +32,7 @@ export async function GET() {
   return Response.json({
     mode: s.mode,
     interests: s.interests,
+    watchlist: s.watchlist,
     rules: s.rules,
     ruleStatus: ruleStatus(portfolio, s.rules),
     threads: threadsOf(s.messages),

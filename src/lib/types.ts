@@ -222,6 +222,8 @@ export interface Store {
   selectedAccountId: string | null;
   mode: Mode;
   interests: string[];
+  /** Tickers the user follows without owning them */
+  watchlist: string[];
   rules: Rule[];
   messages: ChatMessage[];
   paper: PaperBook | null;
