@@ -384,6 +384,7 @@ export async function researchTicker(ticker: string, ctx: ResearchContext): Prom
     `User interests: ${ctx.interests.join(", ") || "(none)"}\n\nQuarterly revenue (SEC XBRL, computed in code):\n${revenueText}`;
 
   // ---- 2. Analysts, in parallel ----
+  let analystError: unknown;
   const round1 = await Promise.all(
     ANGLES.map(async (a, i) => {
       const src = angleSources[i];
@@ -437,7 +438,8 @@ export async function researchTicker(ticker: string, ctx: ResearchContext): Prom
         log({ role: "analyst", task: `${a.name}: ${STANCE_WORDS[out.stance]}, ${clampScore(out.score)}/100`, sourcesRead: read });
         say({ agent: a.name, phase: "report", text: cleanCites(out.report, all.length), stance: out.stance, score: clampScore(out.score) });
         return { def: a, read, out, failed: false };
-      } catch {
+      } catch (e) {
+        analystError ??= e;
         log({ role: "analyst", task: `${a.name}: couldn't finish`, sourcesRead: src.length });
         say({ agent: a.name, phase: "status", text: "I couldn't finish my report, so my angle will be missing." });
         return { def: a, read: src.length, out: null, failed: true };
@@ -446,6 +448,8 @@ export async function researchTicker(ticker: string, ctx: ResearchContext): Prom
   );
 
   const live = round1.filter((r) => r.out);
+  // Every analyst failing is a problem with the service (credit, key, outage), not a verdict: say so instead of posting an empty card.
+  if (!live.length) throw analystError ?? new Error("No analyst could finish.");
   const viewOf = (r: (typeof round1)[number]) =>
     `### ${r.def.name} analyst — ${STANCE_WORDS[r.out!.stance]}, confidence ${clampScore(r.out!.score)}/100\n${r.out!.report}`;
   const allSourcesText = numbered(all.map((s, i) => ({ n: i + 1, s })));

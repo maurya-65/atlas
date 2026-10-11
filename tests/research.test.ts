@@ -130,3 +130,13 @@ test("each stage runs on the model picked for it, and Haiku is never sent a fall
   assert.ok(calls.filter((c) => c.model === "claude-haiku-5-5").every((c) => c.fallbacks === undefined));
   assert.ok(calls.filter((c) => c.model !== "claude-haiku-5-5").every((c) => c.fallbacks === "default"));
 });
+
+test("when every analyst fails, the run fails with the reason instead of posting an empty card", async () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- replacing an SDK method with a test double
+  (anthropic.beta.messages as any).stream = () => ({
+    finalMessage: async () => {
+      throw new Error("the service is down");
+    },
+  });
+  await assert.rejects(researchTicker("ACME", { interests: [] }), /the service is down/);
+});

@@ -4,7 +4,7 @@ import { ndjsonStream } from "@/lib/http";
 import { chatId } from "@/lib/threads";
 import { isResearchableStock } from "@/lib/types";
 
-// Deep research runs several Opus agents and a debate round; progress streams to the app as it happens.
+// Deep research runs several analyst agents and a debate round; progress streams to the app as it happens.
 // 300 seconds is the most every Vercel plan allows; one stock takes about a minute and a half.
 export const maxDuration = 300;
 

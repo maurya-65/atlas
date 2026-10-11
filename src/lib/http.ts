@@ -4,6 +4,7 @@ import { snaptradeErrorText } from "./snaptrade";
 export function errorText(e: unknown): string {
   if (e instanceof Anthropic.RateLimitError) return "The AI service is busy right now. Try again in a minute.";
   if (e instanceof Anthropic.AuthenticationError) return "The Anthropic API key is missing or invalid (set ATLAS_ANTHROPIC_API_KEY in .env.local).";
+  if (e instanceof Anthropic.BadRequestError && /credit balance/i.test(e.message)) return "The AI service isn't available on this account right now. Check the account's billing, then try again.";
   if (e instanceof Anthropic.APIError) return `AI service error (${e.status}). Try again.`;
   return snaptradeErrorText(e);
 }
