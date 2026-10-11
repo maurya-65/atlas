@@ -76,7 +76,7 @@ export interface SourceRef {
   date?: string;
 }
 
-export type MessageKind = "user" | "agent" | "thought" | "constraint" | "research" | "receipt" | "scenario" | "daily";
+export type MessageKind = "user" | "agent" | "thought" | "constraint" | "research" | "receipt" | "scenario" | "daily" | "ideas";
 
 export interface ChatMessage {
   id: string;
@@ -97,6 +97,8 @@ export interface ChatMessage {
   scenario?: ScenarioResult;
   /** daily run brief */
   daily?: DailyBrief;
+  /** ideas: one "what could I invest in" session */
+  ideas?: IdeaSession;
   /** where the card came from, e.g. "Claude (via Atlas MCP)" */
   origin?: string;
   /** The chat this message belongs to. Messages without one are what Atlas found on its own and show up on Home and in History. */
@@ -350,6 +352,70 @@ export interface ScenarioResult {
   numbered?: boolean;
   agents: ScenarioAgentStep[];
   generatedAt: string;
+}
+
+/** Where an Ideas session is, for the stage rail that shows while it runs. */
+export type IdeaStage = "understanding" | "asking" | "scanning" | "checking" | "weighing" | "done";
+
+/** One line in the live stage rail. A ticker with a status is a candidate being screened. */
+export interface IdeaEvent {
+  stage: IdeaStage;
+  text: string;
+  ticker?: string;
+  status?: "candidate" | "kept" | "dropped";
+}
+
+export interface IdeaQuestion {
+  text: string;
+  /** Three or four short answers to tap. "You decide" is added by the page. */
+  options: string[];
+}
+
+/** One suggestion. Every number is worked out in code from market data; the words come from the model. */
+export interface IdeaSuggestion {
+  ticker: string;
+  name: string;
+  kind: "stock" | "fund";
+  /** The area it belongs to, e.g. "technology" or "broad market" */
+  area: string;
+  reason: string;
+  whatItIs: string;
+  risk: string;
+  wrongIf: string;
+  /** How it sits next to what the user already owns */
+  fit: string;
+  price: number;
+  /** Price change over the last month and six months (0.05 = up 5%) */
+  move1m: number | null;
+  move6m: number | null;
+  /** How far below its highest price of the year it is (0.1 = 10% below) */
+  belowHigh: number;
+  swings: "calm" | "moderate" | "bumpy";
+  /** Dividends over the last year as a share of the price, null when it pays none */
+  yield: number | null;
+  /** Suggested paper amount */
+  dollars: number;
+  /** Share of the portfolio this would be after the suggested amount */
+  weightAfter: number;
+  /** Share of the portfolio already in the same area */
+  areaNow: number;
+  /** Share of the portfolio already in this very stock */
+  heldNow: number;
+  /** Set once the user put it in paper */
+  trade?: { id: string; dollars: number; price: number; at: string };
+}
+
+export interface IdeaSession {
+  prompt: string;
+  /** asking: waiting for the answers to the questions. ready: the ideas (or the reason there are none) are in. */
+  status: "asking" | "ready";
+  questions: IdeaQuestion[];
+  answers: string[];
+  ideas: IdeaSuggestion[];
+  /** Tickers that were looked at and set aside, with the plain reason */
+  dropped: { ticker: string; why: string }[];
+  /** One or two sentences: what was found, or why nothing was convincing */
+  summary: string;
 }
 
 /** A rule as a sentence, for rules made in the app. */

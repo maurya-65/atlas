@@ -121,6 +121,12 @@ function fromBook(book: PaperBook, base: Portfolio): Portfolio {
   };
 }
 
+/** The paper copy as a portfolio, whatever the mode is: ideas are only ever tried on paper. */
+export async function paperPortfolio(): Promise<Portfolio> {
+  const base = await basePortfolio();
+  return fromBook(await ensurePaperBook(base), base);
+}
+
 /** What the agent and rules look at: the simulated book in paper mode, the real account in live mode. */
 export async function activePortfolio(): Promise<Portfolio> {
   const s = await readStore();
