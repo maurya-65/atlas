@@ -37,14 +37,14 @@ const judge = {
   edges: [],
 };
 
-let calls: { system: string; searched: boolean }[] = [];
+let calls: { system: string; searched: boolean; content?: unknown }[] = [];
 
 beforeEach(() => {
   calls = [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- replacing SDK methods with test doubles
   const messages = anthropic.beta.messages as any;
-  messages.parse = async ({ system }: { system: string }) => {
-    calls.push({ system, searched: false });
+  messages.parse = async ({ system, messages: sent }: { system: string; messages: { content: unknown }[] }) => {
+    calls.push({ system, searched: false, content: sent[0].content });
     return { stop_reason: "end_turn", parsed_output: system.includes("research debate") ? debater : judge };
   };
   messages.stream = ({ system }: { system: string }) => ({
@@ -108,4 +108,14 @@ test("a page an analyst found joins the source list once; a made-up link never d
     assert.deepEqual(a.points[0].sources, [1, n]);
   }
   assert.doesNotMatch(JSON.stringify(r), /\[W\d+\]/i);
+});
+
+test("the debaters read the same cached text, so only the first one pays full price for it", async () => {
+  await researchTicker("ACME", { interests: [] });
+  const debates = calls.filter((c) => c.system.includes("research debate"));
+  assert.equal(debates.length, 9);
+  const blocks = debates.map((c) => c.content as { text: string; cache_control?: unknown }[]);
+  assert.ok(blocks.every((b) => b[0].cache_control), "the shared reading is marked for caching");
+  assert.equal(new Set(blocks.map((b) => b[0].text)).size, 1, "every debater gets the identical text first");
+  assert.equal(new Set(blocks.map((b) => b[1].text)).size, 9, "only the last part says which analyst you are");
 });

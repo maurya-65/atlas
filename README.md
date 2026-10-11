@@ -73,7 +73,7 @@ Set these in `.env.local`. `.env.example` has the same list with comments.
 | `CRON_SECRET`, `KV_REST_API_URL`, `KV_REST_API_TOKEN` | Hosted only. See [Deploying to Vercel](#deploying-to-vercel). |
 | `ATLAS_APP_URL` | The deployment's address, used in the notes the MCP server gives Claude. Default `http://localhost:3000`. |
 
-**Cost.** Research runs on Claude Opus 5.5, most of the cost being the web pages the analysts read. It measured about $1.50 per stock with four analysts; nine cost more (the six fixed analysts search three times instead of five to keep that down) and haven't been measured yet. Questions in Chat use Claude Sonnet 5.5 at medium effort, about half a cent each (`CHAT_MODEL` in `src/lib/llm.ts`). The Claude Deep Research route below costs the API nothing.
+**Cost.** Research runs on Claude Opus 5.5, most of the cost being the web pages the analysts read plus $0.01 per web search. It measured about $1.50 per stock with four analysts at high effort. Nine analysts at medium effort (the judge stays on high) with the debate's shared reading cached should cost less per analyst, but the total hasn't been measured. Each run prints its estimated cost to the server log (`[research NVDA] ~$…`), split into analysts, debate and judge. Questions in Chat use Claude Sonnet 5.5 at medium effort, about half a cent each (`CHAT_MODEL` in `src/lib/llm.ts`). The Claude Deep Research route below costs the API nothing.
 
 ## Safety model
 

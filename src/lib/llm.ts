@@ -19,6 +19,31 @@ export const CHAT_MODEL = "claude-sonnet-5-5";
 
 export class RefusalError extends Error {}
 
+/** What one API call used, as the API reports it. */
+export interface Usage {
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  cache_creation_input_tokens?: number | null;
+  cache_read_input_tokens?: number | null;
+  server_tool_use?: { web_search_requests?: number } | null;
+}
+
+// USD per million tokens, from the Anthropic pricing page (checked 2026-10-10): input, output, 5-minute cache
+// write, cache read. A web search costs $10 per 1,000 on top. Only used to log what a research run cost.
+const RATES: Record<string, [number, number, number, number]> = {
+  "claude-opus-5-5": [4, 20, 5, 0.2],
+  "claude-sonnet-5-5": [2, 10, 2.5, 0.1],
+};
+const SEARCH_USD = 0.01;
+
+/** Estimated dollars for one call. Unknown models count as the most expensive one we use. */
+export function costOf(u: Usage): number {
+  const [input, output, write, read] = RATES[u.model] ?? RATES[MAIN_MODEL];
+  const tokens = u.input_tokens * input + u.output_tokens * output + (u.cache_creation_input_tokens ?? 0) * write + (u.cache_read_input_tokens ?? 0) * read;
+  return tokens / 1e6 + (u.server_tool_use?.web_search_requests ?? 0) * SEARCH_USD;
+}
+
 /**
  * Structured output with schema validation. Requests opt into server-side refusal
  * fallbacks ("default" routing) so a safety decline is retried on a suitable model.
@@ -30,17 +55,29 @@ export async function structured<S extends z.ZodType>(opts: {
   maxTokens?: number;
   effort?: "low" | "medium" | "high";
   model?: string;
+  /** Text every call in a group shares, ahead of `prompt`. It is cached, so the later calls read it at a fraction of the price. */
+  sharedPrefix?: string;
+  /** Called with what the call used */
+  track?: (u: Usage) => void;
 }): Promise<z.infer<S>> {
   const model = opts.model ?? MAIN_MODEL;
   const response = await anthropic.beta.messages.parse({
     model,
     max_tokens: opts.maxTokens ?? 16000,
     system: opts.system,
-    messages: [{ role: "user", content: opts.prompt }],
+    messages: [
+      {
+        role: "user",
+        content: opts.sharedPrefix
+          ? [{ type: "text", text: opts.sharedPrefix, cache_control: { type: "ephemeral" } }, { type: "text", text: opts.prompt }]
+          : opts.prompt,
+      },
+    ],
     output_config: { format: betaZodOutputFormat(opts.schema), effort: opts.effort ?? "medium" },
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default",
   });
+  opts.track?.({ ...response.usage, model });
   if (response.stop_reason === "refusal") throw new RefusalError("The model declined this request.");
   if (response.parsed_output == null) throw new Error(`Model returned no parseable output (stop_reason: ${response.stop_reason}).`);
   return response.parsed_output as z.infer<S>;
@@ -74,7 +111,11 @@ export async function structuredWithSearch<S extends z.ZodType>(opts: {
   maxSearches: number;
   maxTokens?: number;
   effort?: "low" | "medium" | "high";
+  model?: string;
+  /** Called with what each request used (a search turn can take several) */
+  track?: (u: Usage) => void;
 }): Promise<{ output: z.infer<S>; pages: WebPage[]; searches: number }> {
+  const model = opts.model ?? MAIN_MODEL;
   // The answer is parsed here, not by the SDK: only the last text block is the JSON.
   const { parse, ...format } = betaZodOutputFormat(opts.schema);
   const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: opts.prompt }];
@@ -85,7 +126,7 @@ export async function structuredWithSearch<S extends z.ZodType>(opts: {
     // Streamed, because a searching turn can run for minutes.
     const response = await anthropic.beta.messages
       .stream({
-        model: MAIN_MODEL,
+        model,
         max_tokens: opts.maxTokens ?? 16000,
         system: opts.system,
         messages,
@@ -96,6 +137,7 @@ export async function structuredWithSearch<S extends z.ZodType>(opts: {
       })
       .finalMessage();
 
+    opts.track?.({ ...response.usage, model });
     searches += response.usage.server_tool_use?.web_search_requests ?? 0;
     for (const block of response.content) {
       // A failed search carries an error object instead of a list of results.

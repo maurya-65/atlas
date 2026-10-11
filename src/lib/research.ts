@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { structured, structuredWithSearch, type WebPage } from "./llm";
+import { costOf, structured, structuredWithSearch, type Usage, type WebPage } from "./llm";
 import {
   dedupe,
   federalRegister,
@@ -19,10 +19,12 @@ import type { AgentStep, GraphEdge, GraphNode, Holding, ResearchAngle, ResearchE
 // filings, news feeds, Federal Register), search the web to read past the titles, and write a short cited
 // report. Three are open: they get no source list and decide for themselves what to search each time. Then
 // each reads the others' reports and argues back (one debate round). A judge weighs the debate into a verdict with a 0-100 confidence
-// score. Every call is Opus at high effort; revenue growth and position size are computed in code, never
-// by the model.
+// score. Every call is Opus; revenue growth and position size are computed in code, never by the model.
+// Effort is medium for the analysts and the debate (research work scores the same as at high for less) and
+// high for the one judge call that writes the verdict.
 
-const EFFORT = "high" as const;
+const ANALYST_EFFORT = "medium" as const;
+const JUDGE_EFFORT = "high" as const;
 const PER_ANGLE = 10;
 const MAX_SOURCES = 90;
 // Nine analysts search in parallel, so each gets fewer searches than a team of four would (the pages they read are most of the cost).
@@ -275,6 +277,12 @@ export async function researchTicker(ticker: string, ctx: ResearchContext): Prom
     }
   };
 
+  // What the run cost, by stage, for the server log.
+  const spend = { analysts: 0, debate: 0, judge: 0 };
+  const trackFor = (stage: keyof typeof spend) => (u: Usage) => {
+    spend[stage] += costOf(u);
+  };
+
   const transcript: ResearchEvent[] = [];
   const say = (e: Omit<ResearchEvent, "ticker" | "at">) => {
     const ev: ResearchEvent = { ...e, ticker: t, at: new Date().toISOString() };
@@ -393,7 +401,8 @@ export async function researchTicker(ticker: string, ctx: ResearchContext): Prom
           schema: AnalystSchema,
           maxSearches: a.searches ?? (a.open ? SEARCHES_PER_OPEN_ANALYST : SEARCHES_PER_ANALYST),
           maxTokens: 24000,
-          effort: EFFORT,
+          effort: ANALYST_EFFORT,
+          track: trackFor("analysts"),
         });
         const { numbers, web } = addWebSources(output.webSources, pages);
         const out = {
@@ -433,37 +442,48 @@ export async function researchTicker(ticker: string, ctx: ResearchContext): Prom
   const allSourcesText = numbered(all.map((s, i) => ({ n: i + 1, s })));
 
   // ---- 3. Debate: each analyst reads the others and pushes back ----
+  // Every debater reads the same text (all the reports and all the sources), so that part comes first and is
+  // cached: the first call writes it, the rest read it for a fraction of the price. The first debater therefore
+  // runs alone, and the others start once it has finished.
   if (live.length >= 2) say({ agent: "Atlas", phase: "status", text: "Reports are in. Each analyst now reads the others and pushes back." });
-  const round2 = await Promise.all(
-    round1.map(async (r) => {
-      if (!r.out || live.length < 2) return null;
-      try {
-        const out = await structured({
-          system:
-            `You are the "${r.def.name}" analyst in a research debate. Read the other analysts' reports, challenge the weakest claim you see ` +
-            `with evidence, and update your own stance only if their evidence is genuinely convincing. Don't just agree to be polite. ${PLAIN}`,
-          prompt:
-            `${header}\n\nYour report:\n${viewOf(r)}\n\nThe other analysts:\n${live.filter((x) => x !== r).map(viewOf).join("\n\n")}\n\n` +
-            `All sources:\n${allSourcesText}`,
-          schema: DebateSchema,
-          maxTokens: 16000,
-          effort: EFFORT,
-        });
-        log({ role: "debater", task: `${r.def.name}: ${out.changedMind.trim() ? "updated its view" : "held its view"}, now ${clampScore(out.score)}/100`, sourcesRead: 0 });
-        if (out.challenge.trim()) say({ agent: r.def.name, phase: "debate", text: cleanCites(out.challenge, all.length) });
-        say({
-          agent: r.def.name,
-          phase: "changed_mind",
-          text: out.changedMind.trim() ? cleanCites(out.changedMind, all.length) : "Nothing the others said changed my view.",
-          stance: out.stance,
-          score: clampScore(out.score),
-        });
-        return out;
-      } catch {
-        return null;
-      }
-    }),
-  );
+  const sharedReading = `${header}\n\nAll sources:\n${allSourcesText}\n\nThe analysts' reports:\n${live.map(viewOf).join("\n\n")}`;
+  const debate = async (r: (typeof round1)[number]) => {
+    if (!r.out || live.length < 2) return null;
+    try {
+      const out = await structured({
+        system:
+          "You are an analyst in a research debate. Read the other analysts' reports, challenge the weakest claim you see " +
+          `with evidence, and update your own stance only if their evidence is genuinely convincing. Don't just agree to be polite. ${PLAIN}`,
+        sharedPrefix: sharedReading,
+        prompt: `You are the "${r.def.name}" analyst. Your own report is the "${r.def.name}" one above; the rest belong to the other analysts.`,
+        schema: DebateSchema,
+        maxTokens: 16000,
+        effort: ANALYST_EFFORT,
+        track: trackFor("debate"),
+      });
+      log({ role: "debater", task: `${r.def.name}: ${out.changedMind.trim() ? "updated its view" : "held its view"}, now ${clampScore(out.score)}/100`, sourcesRead: 0 });
+      if (out.challenge.trim()) say({ agent: r.def.name, phase: "debate", text: cleanCites(out.challenge, all.length) });
+      say({
+        agent: r.def.name,
+        phase: "changed_mind",
+        text: out.changedMind.trim() ? cleanCites(out.changedMind, all.length) : "Nothing the others said changed my view.",
+        stance: out.stance,
+        score: clampScore(out.score),
+      });
+      return out;
+    } catch {
+      return null;
+    }
+  };
+  const first = round1.findIndex((r) => r.out);
+  const round2: Awaited<ReturnType<typeof debate>>[] = round1.map(() => null);
+  if (first >= 0) {
+    round2[first] = await debate(round1[first]);
+    const rest = await Promise.all(round1.map((r, i) => (i === first ? null : debate(r))));
+    rest.forEach((out, i) => {
+      if (i !== first) round2[i] = out;
+    });
+  }
 
   const angles: ResearchAngle[] = round1.map((r, i) => {
     const d = round2[i];
@@ -502,7 +522,7 @@ export async function researchTicker(ticker: string, ctx: ResearchContext): Prom
   });
 
   // ---- 4. Judge ----
-  const debateText = angles
+  const verdictInput = angles
     .filter((a) => !a.failed)
     .map(
       (a) =>
@@ -523,10 +543,11 @@ export async function researchTicker(ticker: string, ctx: ResearchContext): Prom
         "Graph: 10-18 nodes. Exactly one 'company' node with id 'company' at the center. Add event, regulation, labor, financials, sector " +
         "and person nodes for the facts that drove the verdict, and 'source' nodes (sourceNumber set, label = short publisher + topic) " +
         "linked to the facts they support. Short unique slug ids; edges have a 2-4 word label.",
-      prompt: `${header}\n\nAnalyst reports and debate:\n${debateText || "(all analysts failed)"}\n\nAll sources:\n${allSourcesText}`,
+      prompt: `${header}\n\nAnalyst reports and debate:\n${verdictInput || "(all analysts failed)"}\n\nAll sources:\n${allSourcesText}`,
       schema: JudgeSchema,
       maxTokens: 20000,
-      effort: EFFORT,
+      effort: JUDGE_EFFORT,
+      track: trackFor("judge"),
     });
   } catch {
     judge = null;
@@ -545,6 +566,11 @@ export async function researchTicker(ticker: string, ctx: ResearchContext): Prom
     stance,
     score: confidenceScore,
   });
+
+  const total = spend.analysts + spend.debate + spend.judge;
+  console.log(
+    `[research ${t}] ~$${total.toFixed(2)} (analysts $${spend.analysts.toFixed(2)}, debate $${spend.debate.toFixed(2)}, judge $${spend.judge.toFixed(2)})`,
+  );
 
   const { nodes, edges } = validateGraph(judge?.nodes ?? [], judge?.edges ?? [], all.length, company.short);
   const clean = (s: string) => cleanCites(s, all.length);
