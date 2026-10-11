@@ -42,7 +42,7 @@ export function researchOptions(r: ResearchResult, holding: Holding | undefined,
     });
   }
   options.push({
-    label: `Keep watching ${r.companyName.split(" ")[0].replace(/[,.]+$/, "") || r.ticker}`,
+    label: `Follow news on ${r.companyName.split(" ")[0].replace(/[,.]+$/, "") || r.ticker}`,
     kind: "add_interest",
     recommended: options.length === 0,
     payload: { topic: r.companyName || r.ticker },
