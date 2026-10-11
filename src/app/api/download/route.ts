@@ -13,7 +13,8 @@ export async function GET(req: Request) {
   const which = new URL(req.url).searchParams.get("file") ?? "";
   if (!Object.hasOwn(FILES, which)) return Response.json({ error: "Unknown download." }, { status: 404 });
   const f = FILES[which as keyof typeof FILES];
-  const zip = zipFolder(path.join(process.cwd(), f.dir), f.prefix);
+  // next.config.ts lists these folders in outputFileTracingIncludes, so the tracer doesn't need to follow this path.
+  const zip = zipFolder(path.join(/*turbopackIgnore: true*/ process.cwd(), f.dir), f.prefix);
   return new Response(new Uint8Array(zip), {
     headers: { "Content-Type": "application/zip", "Content-Disposition": `attachment; filename="${f.name}"`, "Cache-Control": "no-store" },
   });
