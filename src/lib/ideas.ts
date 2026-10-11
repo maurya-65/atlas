@@ -10,19 +10,20 @@ import { executeApprovedTrade } from "./trading";
 import type { ChatMessage, IdeaEvent, IdeaQuestion, IdeaSession, IdeaSuggestion, Portfolio, Rule, TradeRecord } from "./types";
 
 // The Ideas tab: a plain-words request, a few follow-up questions, then 3-5 grounded suggestions that can be
-// tried on paper. The models do the wording only. A session makes at most three small calls on the cheapest
-// model (the questions, the candidate list, the write-up); everything else is code: each candidate is checked
-// against real market data, every number shown comes from that data, and sizes and limits are plain arithmetic.
-// Nothing here can place a live order.
+// tried on paper. The models do the wording only. A session makes at most three calls: the questions on the
+// cheapest model, then the candidate list and the write-up on a stronger one, because those decide how good the
+// ideas are. Everything else is code: each candidate is checked against real market data, every number shown
+// comes from that data, and sizes and limits are plain arithmetic. Nothing here can place a live order.
 
-const IDEAS_MODEL = "claude-haiku-5-5";
+const QUESTIONS_MODEL = "claude-haiku-5-5";
+const PICKS_MODEL = "claude-sonnet-5-5";
 // What one session may spend in all: the questions get a small slice, finding the ideas the rest.
-const QUESTIONS_BUDGET_USD = 0.03;
-const IDEAS_BUDGET_USD = 0.12;
+const QUESTIONS_BUDGET_USD = 0.005;
+const IDEAS_BUDGET_USD = 0.07;
 
 const MAX_QUESTIONS = 4;
-const MAX_CANDIDATES = 10;
-const MAX_CHECKED = 8;
+const MAX_CANDIDATES = 16;
+const MAX_CHECKED = 12;
 const MAX_IDEAS = 5;
 const MAX_TEXT = 300;
 const MAX_ANSWER = 200;
@@ -49,8 +50,8 @@ export class Budget {
   };
 
   /** Whether a call with this much text going in and at most `maxTokens` coming out still fits. */
-  allows(chars: number, maxTokens: number): boolean {
-    const worst = costOf({ model: IDEAS_MODEL, input_tokens: Math.ceil(chars / 3), output_tokens: maxTokens });
+  allows(chars: number, maxTokens: number, model = QUESTIONS_MODEL): boolean {
+    const worst = costOf({ model, input_tokens: Math.ceil(chars / 3), output_tokens: maxTokens });
     return this.spent + worst <= this.limit;
   }
 }
@@ -61,9 +62,12 @@ export class BudgetError extends Error {
   }
 }
 
-function ask<S extends z.ZodType>(budget: Budget, opts: { system: string; prompt: string; schema: S; maxTokens: number; effort: "low" | "medium" }) {
-  if (!budget.allows(opts.system.length + opts.prompt.length, opts.maxTokens)) throw new BudgetError();
-  return structured({ ...opts, model: IDEAS_MODEL, track: budget.track });
+function ask<S extends z.ZodType>(
+  budget: Budget,
+  opts: { model: string; system: string; prompt: string; schema: S; maxTokens: number; effort: "low" | "medium" },
+) {
+  if (!budget.allows(opts.system.length + opts.prompt.length, opts.maxTokens, opts.model)) throw new BudgetError();
+  return structured({ ...opts, track: budget.track });
 }
 
 // ---------- Words from the model, checked in code ----------
@@ -129,8 +133,10 @@ const Candidates = z.object({
 
 const CANDIDATES_SYSTEM =
   "You pick real US-listed stocks and ETFs worth a closer look for someone with no finance knowledge, from what they asked and answered. " +
-  `Return 8 to ${MAX_CANDIDATES} candidates. Only tickers you are certain trade on NYSE or Nasdaq today. No penny stocks, crypto, leveraged or inverse funds, or newly listed companies. ` +
+  `Return 12 to ${MAX_CANDIDATES} candidates. Only tickers you are certain trade on NYSE or Nasdaq today. No penny stocks, crypto, leveraged or inverse funds, or newly listed companies. ` +
   "Follow their answers strictly: how long they can wait, how much of a drop they can take, what to prefer or avoid. For a cautious goal lean on broad funds and steady large companies; for a bold goal lean on focused companies. " +
+  "Spread the list over several areas and mix low-cost funds with single companies, unless their answers clearly point one way, so the final picks can be balanced. " +
+  "Favour well-run, established businesses and large, cheap funds over fashionable names; skip anything you would not be comfortable explaining to a beginner. " +
   "Give each candidate's area. Also give the area of each stock they already own.";
 
 // ---------- Step 3: the write-up ----------
@@ -144,6 +150,9 @@ const WRITE_UP_SYSTEM =
   "You write investing ideas for someone with no finance knowledge. Use only the candidates in the table: the app already checked them and shows every number itself. " +
   `Pick the 3 to ${MAX_IDEAS} that best fit what the person asked and answered. Pick fewer, or none, when few are convincing: an honest "nothing convincing" beats a weak idea. In that case leave ideas empty and say why in summary. ` +
   "Prefer ideas that do not pile onto what they already own (the table shows the overlap). " +
+  "Before choosing, test every candidate against their answers: leave out one whose worst fall in the past year is clearly bigger than the drop they said they could sit through, " +
+  "or whose swings don't suit how long they can wait. Spread the picks: at most two from the same area. For a beginner who wants something simple, include a broad low-cost fund as the base. " +
+  "Each reason must tie to something they actually said. " +
   "For each idea write: reason (one sentence, specific to their answers, not generic), whatItIs (one plain sentence on what the company or fund is), risk (the main way it could lose money), " +
   "wrongIf (one concrete thing that would show the idea was wrong), fit (one sentence on how it sits next to what they own). " +
   "Rules: everyday words, explain any needed term in a few words. Never write a number, percentage or dollar amount. Do not mention the table or the app. Do not promise returns. summary is one or two sentences.";
@@ -157,7 +166,8 @@ function tableRow(f: MarketFacts, c: { area: string; angle: string }, heldNow: n
     f.name,
     f.kind,
     c.area,
-    `1 month ${moved(f.move1m)}, 6 months ${moved(f.move6m)}`,
+    `1 month ${moved(f.move1m)}, 6 months ${moved(f.move6m)}, 1 year ${moved(f.move1y)}`,
+    `worst fall in the past year ${pct(f.worstDrop)}`,
     `${pct(f.belowHigh)} below its yearly high`,
     `swings ${f.swings}`,
     f.yield ? `pays about ${pct(f.yield)} a year in dividends` : "no dividend",
@@ -291,6 +301,7 @@ export async function startIdeas(prompt: string, send: Send): Promise<{ id: stri
   let questions: IdeaQuestion[] = [];
   try {
     const out = await ask(budget, {
+      model: QUESTIONS_MODEL,
       system: CLARIFY_SYSTEM,
       prompt: `What they typed: "${prompt}"\nWhat they own: ${p ? oneLine(p) : "unknown"}`,
       schema: Clarify,
@@ -340,10 +351,11 @@ async function work(session: IdeaSession, answers: string[], send: Send, id: str
 
   send({ stage: "scanning", text: "Looking for candidates that fit your answers" });
   const found = await ask(budget, {
+    model: PICKS_MODEL,
     system: CANDIDATES_SYSTEM,
     prompt: `${talk}\nWhat they own: ${oneLine(p)}`,
     schema: Candidates,
-    maxTokens: 1500,
+    maxTokens: 2500,
     effort: "medium",
   });
   const areaOf = new Map(found.holdingAreas.map((h) => [h.ticker.toUpperCase(), h.area as string]));
@@ -388,10 +400,11 @@ async function work(session: IdeaSession, answers: string[], send: Send, id: str
     send({ stage: "weighing", text: `Weighing the risks of ${kept.length} that passed` });
     try {
       const out = await ask(budget, {
+        model: PICKS_MODEL,
         system: WRITE_UP_SYSTEM,
-        prompt: `${talk}\nWhat they own: ${oneLine(p)}\n\nCandidates (ticker | name | type | area | recent moves | vs yearly high | swings | dividends | overlap | why picked):\n${kept.map((k) => tableRow(k.facts, k.c, k.heldNow, k.areaNow)).join("\n")}`,
+        prompt: `${talk}\nWhat they own: ${oneLine(p)}\n\nCandidates (ticker | name | type | area | recent moves | worst fall | vs yearly high | swings | dividends | overlap | why picked):\n${kept.map((k) => tableRow(k.facts, k.c, k.heldNow, k.areaNow)).join("\n")}`,
         schema: WriteUp,
-        maxTokens: 2500,
+        maxTokens: 3500,
         effort: "medium",
       });
       ideas = build(out.ideas, kept, p, s.rules, found.budgetUsd);

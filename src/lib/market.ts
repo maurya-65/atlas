@@ -10,6 +10,9 @@ export interface MarketFacts {
   /** Fractions: 0.05 = up 5% */
   move1m: number | null;
   move6m: number | null;
+  move1y: number | null;
+  /** The biggest fall from a high to a later low over the past year (0.3 = it once lost 30%) */
+  worstDrop: number;
   /** How far below the highest price of the year (0.1 = 10% below) */
   belowHigh: number;
   swings: "calm" | "moderate" | "bumpy";
@@ -76,6 +79,12 @@ export function factsFromChart(ticker: string, chart: Chart | null | undefined):
   const returns = lastSixMonths.slice(1).map((c, i) => Math.log(c / lastSixMonths[i]));
   const yearly = stdev(returns) * Math.sqrt(252);
   const high = Math.max(meta.fiftyTwoWeekHigh ?? 0, ...closes);
+  let peak = 0;
+  let worstDrop = 0;
+  for (const close of closes) {
+    peak = Math.max(peak, close);
+    worstDrop = Math.max(worstDrop, 1 - close / peak);
+  }
   const paid = Object.values(chart.events?.dividends ?? {})
     .filter((d) => d.date * 1000 > Date.now() - 365 * 86_400_000)
     .reduce((sum, d) => sum + d.amount, 0);
@@ -88,6 +97,8 @@ export function factsFromChart(ticker: string, chart: Chart | null | undefined):
       price,
       move1m: daysAgo(21),
       move6m: daysAgo(126),
+      move1y: price / closes[0] - 1,
+      worstDrop,
       belowHigh: Math.max(0, 1 - price / high),
       swings: yearly < 0.2 ? "calm" : yearly < 0.35 ? "moderate" : "bumpy",
       yield: paid > 0 ? paid / price : null,

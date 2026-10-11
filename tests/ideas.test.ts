@@ -26,6 +26,7 @@ test("a real listed fund passes, with its numbers worked out from the prices", (
   assert.equal(out.facts.kind, "fund");
   assert.equal(out.facts.yield, 1.2 / 125);
   assert.ok(out.facts.move1m! > 0 && out.facts.belowHigh > 0);
+  assert.equal(out.facts.worstDrop, 0, "prices that only rose never fell from a high");
 });
 
 test("a ticker that doesn't exist, isn't US-listed, trades thinly or multiplies swings is set aside with a reason", () => {
@@ -95,7 +96,7 @@ test("a paper buy can't go past the cash or the user's one-stock limit", () => {
 });
 
 test("only ideas from the checked table whose explanation is clean are kept", () => {
-  const kept = [{ facts: { ticker: "VYM", name: "Vanguard Dividend", kind: "fund" as const, price: 120, move1m: 0.02, move6m: 0.05, belowHigh: 0.03, swings: "calm" as const, yield: 0.03 }, c: { area: "broad market", angle: "" }, heldNow: 0, areaNow: 0 }];
+  const kept = [{ facts: { ticker: "VYM", name: "Vanguard Dividend", kind: "fund" as const, price: 120, move1m: 0.02, move6m: 0.05, move1y: 0.08, worstDrop: 0.06, belowHigh: 0.03, swings: "calm" as const, yield: 0.03 }, c: { area: "broad market", angle: "" }, heldNow: 0, areaNow: 0 }];
   const words = { reason: "Steady payouts.", whatItIs: "A fund of dividend payers.", risk: "Payers can cut dividends.", wrongIf: "Dividends get cut.", fit: "" };
   const ideas = build(
     [
