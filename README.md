@@ -1,169 +1,84 @@
 # Atlas
 
-An AI investing agent for a brokerage account connected through [SnapTrade](https://snaptrade.com). Atlas reads what you hold, reads public sources about it (SEC filings, news, Federal Register notices), and tells you in plain words when something matters. It can research a stock, trace a what-if through your holdings, and suggest a trade. **It never trades on its own:** a trade only happens when you click a decision card, and live orders are capped in server code.
+An AI investing agent for a brokerage account connected through [SnapTrade](https://snaptrade.com). Atlas reads what you hold, reads public sources about it, and explains in plain words what matters. It can research a company, suggest ideas, trace a what-if through your holdings, and propose a trade.
+
+**It never trades on its own.** A trade only happens when you click a decision card, and real-money orders are capped in server code.
 
 Built for SnapTrade Hack Atlantic 2026 (Student Challenge).
 
-- [How it works](#how-it-works)
-- [Features](#features)
-- [Getting started](#getting-started)
-- [Configuration](#configuration)
-- [Safety model](#safety-model)
-- [Using Atlas with Claude](#using-atlas-with-claude)
-- [Deploying to Vercel](#deploying-to-vercel)
-- [Tests](#tests)
-- [Project layout](#project-layout)
-- [Design notes and limits](#design-notes-and-limits)
-
-## How it works
-
-```mermaid
-flowchart LR
-  B[Brokerage] -->|SnapTrade| P[Portfolio]
-  S[SEC, news, Federal Register] --> R[Research, scan, what-if]
-  P --> R
-  R -->|Claude API| C[Cards on Home, Research and Decisions]
-  C -->|you click approve| T[Trade]
-  T --> M{Mode}
-  M -->|paper, default| X[Simulated copy of your account]
-  M -->|live, capped| B
-```
-
-Three things are worth knowing before reading the code.
-
-1. **Every result has one home.** Everything Atlas produces is saved as a card in one document, and each page arranges those cards its own way. *Research* keeps research by company (and what-ifs), *Decisions* holds trades and suggestions waiting for your yes or no plus what you decided before, *Home* shows what needs you and what changed since the last check, *History* lists everything by time, and *Chat* is only questions and answers. Starting something tells you where its result will appear, and *Activity* (top right) shows what is running.
-2. **Reading is free, acting is gated.** The model has no tool that places an order. A proposal becomes a decision card, and `src/app/api/action/route.ts` is the only code path that trades, and only when a person clicks.
-3. **Three ways in.** The web app, Claude through an MCP server (same tools, same store), and Claude Deep Research on claude.ai through a Chrome extension (research runs on your Claude plan instead of the API key).
-
 ## Features
 
-- **Research.** Nine analysts each take one angle on a stock. Six start from the sources Atlas collects (business, financial health, valuation, industry, regulation, people and operations); three are open and plan their own web searches each time: a news scout for what just happened, a skeptic for the case against, and a niche-news digger that reads trade press, court dockets, local news and older background below the headlines. All of them search the web and write a short cited report. They read each other's reports and argue once, then a judge gives a verdict (buy more, sell some, hold) with a 0-100 confidence score. *Review my portfolio* does this for the three biggest holdings.
-- **What-if.** "What if Taiwan blocks chip exports?" A planner splits the scenario into the ways it could spread, researchers read the news for each, and a synthesizer maps it onto your holdings with a rough dollar range. The dollar math is done in code, not by the model.
-- **Scan and rules.** Rule checks (concentration, drawdown, idle cash, price levels) are plain arithmetic. Rules are added on the *Watching* page, which also shows what each one finds right now. *Check now* runs the rules, reads new filings and headlines, and posts a note or a decision card.
-- **Morning check.** Once a day: what changed, what the rules flagged, research on the next holding in rotation, and suggestions you can try as paper trades. Off until you turn it on, under *Watching*.
-- **Ideas.** Say what you want in plain words ("I have 20k, something safe that pays dividends"). Atlas asks a few short questions, then suggests up to five real US stocks or funds, which can be ones you don't own. Each has a reason, what it is, its main risk, what would make it wrong and how it fits what you hold. Every candidate is checked against market data first (it exists, is US-listed, trades enough) and set aside if not. All the numbers come from that data, not from the model, and a sentence with a figure the model wrote is cut. *Try on paper* shows what your portfolio would look like after, checks your cash and your one-stock limit, then places a paper order; it never places a live one. Ideas you tried are followed on the page.
-- **Paper account.** The practice copy of your account, under *Portfolio → Paper account*: the trades you approved, and what each would have gained or lost (worked out in code).
-- **Ask.** Questions about the portfolio or an investing term, answered in the current thread. If a question needs research or a what-if, the answer comes with a button that runs it, so a slow and costly job never starts without a click. Atlas keeps a one-line note of each answer so later answers have context.
-- **Paper and live mode.** Paper mode (the default) trades a simulated copy of your account priced with live quotes. Live mode sends real market orders through SnapTrade.
-- **Guide.** A user manual inside the app (*Guide* in the menu): what each page is for, a ten-minute first walk-through, the words used, and what to do when something doesn't work.
+- **Ideas.** Say what you want in plain words. Atlas asks a few short questions, then suggests up to five US stocks or funds, each with a reason, its main risk and how it fits what you hold. Every candidate is checked against market data first, and every number shown comes from that data. Ideas are tried as paper trades and followed on the page.
+- **Research.** Nine analysts each take one angle on a company, argue once, and a judge gives a verdict with a 0-100 confidence score.
+- **What-if.** "What if Taiwan blocks chip exports?" Atlas maps the event onto your holdings with a rough dollar range. The dollar math is done in code.
+- **Watching.** Rules in plain words (too much in one stock, a stock well below what you paid, idle cash, price alerts), topics to follow, and a morning check that leaves a short note each day.
+- **Decisions.** Every suggestion waits for your yes or no.
+- **Chat.** Questions about your portfolio or an investing term.
+- **Paper and real money.** Paper mode (the default) trades a simulated copy of your account. Real-money mode sends market orders through SnapTrade.
+- **Guide.** A user manual inside the app.
 
 ## Getting started
 
-You need Node.js 20.9 or newer, an [Anthropic API key](https://console.anthropic.com), and a SnapTrade account (a free sandbox works and trades fake money).
+You need Node.js 20.9 or newer, an [Anthropic API key](https://console.anthropic.com) and SnapTrade keys (a free sandbox works and trades pretend money).
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in the keys, see below
+cp .env.example .env.local   # fill in the keys
 npm run dev                  # http://localhost:3000
 ```
 
-Without SnapTrade keys the app still starts and shows a clearly labelled demo portfolio, so you can look around before connecting anything. Connect a brokerage from *Settings*.
-
-State is one JSON document in `.data/store.json`. *Start over* (under Settings) clears it and keeps the brokerage link.
+Without SnapTrade keys the app still starts and shows a labelled demo portfolio. State is one JSON document in `.data/store.json`.
 
 ## Configuration
 
-Set these in `.env.local`. `.env.example` has the same list with comments.
-
 | Variable | What it's for |
 |---|---|
-| `ATLAS_ANTHROPIC_API_KEY` | Claude API key. Wins over an `ANTHROPIC_API_KEY` already set in the shell. |
+| `ATLAS_ANTHROPIC_API_KEY` | Claude API key. |
 | `SNAPTRADE_CLIENT_ID`, `SNAPTRADE_CONSUMER_KEY` | SnapTrade dashboard → API keys. |
-| `SNAPTRADE_AUTH_MODE` | `personal` (default) for dashboard keys, where brokerages are linked in the dashboard or with the Connect button. `commercial` for app keys, where Atlas registers a SnapTrade user itself. |
-| `SNAPTRADE_BROKER` | Optional. Opens the connection portal on one broker, e.g. `ALPACA-PAPER`. |
-| `SEC_USER_AGENT` | Optional contact string, which SEC EDGAR asks for. |
-| `ATLAS_PASSWORD` | Puts the app behind a sign-in. Optional locally, required when hosted. |
+| `ATLAS_PASSWORD` | Puts the app behind a sign-in. Required when hosted. |
 | `ATLAS_USERNAME` | Optional: sign-in asks for this username too. |
-| `ATLAS_SHOW_LOGIN` | `1` prints the username and password under the sign-in form, for a demo copy shared with reviewers. |
+| `ATLAS_SHOW_LOGIN` | `1` shows the username and password under the sign-in form, for a demo copy shared with reviewers. |
 | `CRON_SECRET`, `KV_REST_API_URL`, `KV_REST_API_TOKEN` | Hosted only. See [Deploying to Vercel](#deploying-to-vercel). |
-| `ATLAS_APP_URL` | The deployment's address, used in the notes the MCP server gives Claude. Default `http://localhost:3000`. |
 
-**Cost.** Most of a research's cost is the web pages the analysts read, plus $0.01 per web search. It measured about $1.50 per stock with four analysts, all on Opus at high effort. Nine analysts are kept near $1 by choosing the model per stage (`research.ts`): Haiku 5.5 for the six analysts that start from a prepared source list, Sonnet 5.5 for the three that plan their own searches and for the debate, and Opus 5.5 at high effort for the judge. Everything else runs at medium effort, and the debate's shared reading is cached. That total is an estimate until a run measures it; each run prints its cost to the server log (`[research NVDA] ~$…`), split into analysts, debate and judge. An Ideas search makes three calls with no web search: the questions on Haiku 5.5, the candidate list and the write-up on Sonnet 5.5, under a spending limit per search in `ideas.ts`. Questions in Chat use Claude Sonnet 5.5 at medium effort, about half a cent each (`CHAT_MODEL` in `src/lib/llm.ts`). The Claude Deep Research route below costs the API nothing.
+Optional: `SNAPTRADE_AUTH_MODE` (`personal` by default, `commercial` for app keys), `SNAPTRADE_BROKER` (open the connection portal on one broker), `SEC_USER_AGENT` (the contact string SEC EDGAR asks for) and `ATLAS_APP_URL` (the address the MCP server tells Claude).
 
 ## Safety model
 
 Atlas is built so that a wrong answer from the model costs a bad suggestion, not money.
 
-- The model has no order-placing tool. Only a click on a decision card reaches `src/app/api/action/route.ts`, and a card can be decided once, so a double click does not trade twice.
-- Live orders are capped at $25 per trade and $100 per day in `src/lib/trading.ts`, whatever the card says.
-- A live order is sent as a dollar amount. A broker that only takes whole shares (the SnapTrade sandbox is one) gets whole shares instead, so under the $25 cap only a share that costs $25 or less can be bought there. Atlas says so instead of sending a bigger order.
-- Switching to live mode requires typing `LIVE` and a connected account. A hosted copy stays in paper mode.
-- Suggestions from the daily run are always paper trades.
-- Writes are accepted only from the Atlas page or its Chrome extension, and only as JSON (`src/proxy.ts`). Any other website you visit cannot plant a card or a trade.
+- The model has no order-placing tool. Only a click on a decision card reaches `src/app/api/action/route.ts`, and a card can be decided once.
+- Real-money orders are capped at $25 per trade and $100 per day in `src/lib/trading.ts`, whatever the card says.
+- A broker that only takes whole shares gets whole shares, so under the cap only a share that costs $25 or less can be bought there. Atlas says so instead of sending a bigger order.
+- Switching to real money requires typing `LIVE`. A hosted copy stays in paper mode.
+- Ideas and morning-check suggestions are always paper trades.
+- Writes are accepted only from the Atlas page or its Chrome extension (`src/proxy.ts`).
 - A hosted copy refuses to serve anything until `ATLAS_PASSWORD` is set.
 
-**Default guardrails** for a new store: flag a single stock above 25% of the portfolio (funds are not counted), flag a stock 10% below its purchase price, mention cash above 10%. Change them on the *Watching* page.
+**Default guardrails** for a new store: flag a single stock above 25% of the portfolio, flag a stock 10% below its purchase price, mention cash above 10%. Change them on the *Watching* page.
 
-### SnapTrade calls
-
-- **Connect:** the hosted connection portal (`loginSnapTradeUser`, `connectionType: "trade"`).
-- **Read:** `listUserAccounts`, `getAllAccountPositions`, `getUserAccountBalance`, `getUserAccountRecentOrders`, and quotes from `getUserAccountQuotes`.
-- **Live orders:** market orders through `placeForceOrder`, sized in dollars.
+SnapTrade calls used: the connection portal, `listUserAccounts`, `getAllAccountPositions`, `getUserAccountBalance`, `getUserAccountRecentOrders`, `getUserAccountQuotes`, and `placeForceOrder` for real-money orders.
 
 ## Using Atlas with Claude
 
-### MCP server
-
-The MCP server gives Claude the same tools as the app. Claude can propose a trade; it cannot place one. It shares `.env.local` and `.data/` with the web app.
+**MCP server.** Gives Claude the same tools as the app. Claude can propose a trade; it cannot place one.
 
 ```bash
-npm run mcp     # stdio server
+npm run mcp
+claude mcp add atlas -- npx -y tsx /path/to/atlas/src/mcp/server.mts
 ```
 
-Claude Code: `claude mcp add atlas -- npx -y tsx /path/to/atlas/src/mcp/server.mts`
+**Deep Research in Claude.** Atlas's research can also run in Claude's Research mode, on your Claude plan (Pro or higher). Click **Research in Claude**, press send in the tab that opens, and the finished report comes back into Atlas through the Chrome extension in `extension/`, or by pasting it under *Settings*. Setup steps are in *Settings → Claude* and in [extension/README.md](extension/README.md).
 
-Claude Desktop (`claude_desktop_config.json`):
-
-```json
-{
-  "mcpServers": {
-    "atlas": { "command": "npx", "args": ["-y", "tsx", "/path/to/atlas/src/mcp/server.mts"] }
-  }
-}
-```
-
-| Tool | What it does |
-|---|---|
-| `atlas_get_portfolio` | Holdings, mode and live limits |
-| `atlas_research_company` | Research on one stock |
-| `atlas_review_portfolio` | Research on the three biggest holdings |
-| `atlas_what_if` | What-if on the current holdings |
-| `atlas_scan` | Rule checks and a public-sources scan |
-| `atlas_propose_trade` | Creates a decision card. It does not trade. |
-| `atlas_pending_decisions` | What the user approved or declined |
-| `atlas_rules` | List, add or remove rules |
-| `atlas_daily_run`, `atlas_daily_schedule` | Run the daily check, or change its schedule |
-| `atlas_memory` | Read or add to the notes Atlas keeps between conversations |
-
-Cards Claude creates are marked "From Claude" in the app.
-
-### Deep Research in Claude (Chrome extension)
-
-Atlas's own research costs API credits. The same research can run in Claude Deep Research on claude.ai, paid for by your Claude plan (Pro or higher; the free plan has no Research mode). The extension connects the two:
-
-1. You click **Deep research in Claude** in Atlas.
-2. A claude.ai tab opens with Research turned on and a prompt that includes your position and what Atlas already found.
-3. You press send and keep the tab open for about ten minutes.
-4. Claude ends its report with an `ATLAS_RESULT` JSON block. The extension reads it and Atlas turns it into a normal research card. Importing is plain code (`src/lib/handoff.ts`), with no model call.
-
-The button only appears once the extension is set up. *Settings → Claude* has the downloads and the install steps, and works for Atlas on your computer or on a hosted address you add once. The extension's own notes, security model and troubleshooting are in [extension/README.md](extension/README.md). If an import ever fails, **Bring back a Claude report** in the same place accepts the pasted answer.
-
-### Claude skill
-
-`claude-skill/atlas-stock-research/` is an optional Claude skill for this hand-off. It carries the method (five analyst passes, a debate, a judge with a confidence rubric), the checklists each pass works from, a fixed report format, and a script that checks the `ATLAS_RESULT` block the way Atlas parses it.
-
-Download the zip from *Settings → Claude*, or zip the folder yourself so that `atlas-stock-research/` is at the top, then upload it in Claude under Settings → Customize → Skills (code execution has to be on). Anthropic's docs don't say whether Research mode loads skills, so the prompt Atlas sends also names the skill and carries the report outline. It works without the skill installed.
+**Claude skill.** `claude-skill/atlas-stock-research/` is an optional skill that gives Claude the research method and report format. Download it from *Settings → Claude* and add it in Claude under Settings → Customize → Skills.
 
 ## Deploying to Vercel
 
 1. Import the repository.
-2. Add Upstash Redis from the Storage tab. Vercel has no writable disk, so the state lives in Redis there (`KV_REST_API_URL`, `KV_REST_API_TOKEN`).
-3. Set the variables from the table above, plus `ATLAS_PASSWORD` and `CRON_SECRET` (a long random string).
-4. Deploy.
+2. Add Upstash Redis from the Storage tab. Vercel has no writable disk, so the state lives in Redis there.
+3. Set the variables from the table above.
+4. Deploy. Later pushes to the production branch deploy by themselves.
 
-Every push to the production branch deploys by itself once the repository is connected.
-
-`vercel.json` calls `/api/cron/daily` once a day at 13:00 UTC, so on Vercel the daily run starts then rather than at the time picked in the app. Requests are limited to 300 seconds, and a stock took about a minute and a half with four analysts (not re-measured with nine), so keep the daily run at one or two stocks.
+`vercel.json` runs the morning check once a day at 13:00 UTC.
 
 ## Tests
 
@@ -173,43 +88,24 @@ npm run typecheck
 npm run lint
 ```
 
-The tests cover the parts where a mistake costs money or leaks access: trade execution and the live caps, Ideas (ticker checks, spending limit, paper orders), decision cards, rule checks and adding rules, sign-in and the write checks, research citations, which chat an answer belongs to, and the zips served for the extension and the skill. They need no keys and make no network calls; the model is replaced by a stand-in. They do not cover a real order reaching a broker, reading a real SnapTrade account, or the browser (including the extension).
+The tests cover the parts where a mistake costs money or leaks access: trade execution and the caps, Ideas, decision cards, rules, sign-in and research citations. They need no keys and make no network calls.
 
 ## Project layout
 
 ```
-src/app/            pages and API routes (Next.js App Router)
-src/components/     the UI: Home, Portfolio, Ideas, Research, Chat, Decisions, Watching, History, Guide, Settings
-src/lib/            everything the app does, one file per concern (below)
+src/app/            pages and API routes
+src/components/     the UI, one view per page
+src/lib/            everything the app does, one file per concern
 src/mcp/server.mts  MCP server
-src/proxy.ts        sign-in and write checks, run before every request
-extension/          Chrome extension for Deep Research in Claude
+src/proxy.ts        sign-in and write checks
+extension/          Chrome extension for Research in Claude
 claude-skill/       Claude skill for the same hand-off
 tests/              node:test suites
 ```
 
-In `src/lib/`:
+## Limits
 
-- `snaptrade.ts`: SnapTrade client
-- `portfolio.ts`: real, paper and demo portfolios
-- `trading.ts`: executing an approved trade, live caps
-- `rules.ts`: rule checks
-- `sources.ts`: SEC EDGAR, Google News RSS, Federal Register
-- `research.ts`, `review.ts`: analysts, debate, judge, and posting the result
-- `scenario.ts`: what-if
-- `ideas.ts`, `market.ts`: the Ideas tab (questions, candidate checks, sizing, paper orders) and the market data it checks
-- `scan.ts`, `watch.ts`: headline triage and cards; one pass of rule checks plus the public-sources scan
-- `daily.ts`, `scheduler.ts`: the daily run and its timer (checked once a minute in the server process locally, `src/app/api/cron/daily/route.ts` on Vercel)
-- `chat.ts`, `threads.ts`: answering in a chat, the chat list, memory
-- `handoff.ts`: Claude Deep Research prompt and import
-- `store.ts`: state, as a file or one Redis key
-- `auth.ts`: sign-in
-- `zip.ts`: builds the extension and skill downloads
-
-## Design notes and limits
-
-- **One document, one user.** The whole state is a single JSON document (a file, or one Redis key). It keeps the code small and the state easy to inspect, and it means Atlas is a single-user app: there are no accounts, only the optional password.
-- **Claude's answers are parsed, not trusted.** Structured model output goes through a schema (zod). The imported Deep Research block is validated the same way: it needs a real verdict and at least one source, so the prompt's own template cannot be imported by mistake, and a citation that points at no source is dropped.
-- **The extension depends on claude.ai's page.** It finds the Research menu and the message box by their selectors (`SEL` at the top of `extension/claude.js`). If claude.ai changes its markup, those need updating; the fallback is the paste-back box under Settings.
-- **Not verified end to end:** live orders and the connection portal against a real brokerage, the scheduled daily run on a long-lived server, and the extension's hosted-address flow in a real browser. The sandbox covers reading and paper trading.
+- **One user.** The whole state is a single JSON document (a file, or one Redis key). There are no accounts, only the optional sign-in.
+- **Real-money orders are lightly tested.** The SnapTrade sandbox accepted a whole-share order built by Atlas, but it has no share under the $25 cap, so a full capped order from a decision card has not been run against a broker.
+- **The extension depends on claude.ai's page.** If claude.ai changes its markup, the selectors in `extension/claude.js` need updating; pasting the report under *Settings* always works.
 - **Not financial advice.** Atlas produces research and suggestions. You make the decisions.
