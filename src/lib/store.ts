@@ -108,7 +108,17 @@ async function save(s: Store) {
   await fs.mkdir(DATA_DIR, { recursive: true });
   const tmp = FILE + ".tmp";
   await fs.writeFile(tmp, JSON.stringify(s, null, 2));
-  await fs.rename(tmp, FILE);
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await fs.rename(tmp, FILE);
+      return;
+    } catch (e) {
+      // Windows refuses to replace a file another request is reading at that moment; wait and try again.
+      const code = (e as NodeJS.ErrnoException).code;
+      if ((code !== "EPERM" && code !== "EBUSY" && code !== "EACCES") || attempt >= 9) throw e;
+      await new Promise((r) => setTimeout(r, 50 * (attempt + 1)));
+    }
+  }
 }
 
 // One page load reads the store several times. Over the network that is slow, so plain reads may reuse
