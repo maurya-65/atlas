@@ -25,20 +25,20 @@ You need three things: a paid Claude plan, Atlas (on your computer or hosted), a
 **2. Atlas open.** Either run it on your computer ("Run it" in the main README, then http://localhost:3000, which needs no extra setup), or use a hosted copy and add its address in step 3.
 
 **3. Install the extension.**
-   - Open the **Claude setup** tab in Atlas and click **Download the extension**. Unzip it somewhere permanent, open `chrome://extensions`, turn on **Developer mode** (top right), click **Load unpacked** and choose the unzipped folder.
+   - Open *Settings → Claude* in Atlas and click **Download the extension**. Unzip it somewhere permanent, open `chrome://extensions`, turn on **Developer mode** (top right), click **Load unpacked** and choose the unzipped folder.
    - Or use this repo's `extension` folder directly: **Load unpacked** and choose it.
    - From the Chrome Web Store, if it is listed there: search for **Atlas Deep Research** and click **Add to Chrome**.
 
    **Hosted Atlas only:** click the extension's toolbar icon (puzzle piece → **Atlas Deep Research**), type your Atlas address (for example `https://your-atlas.vercel.app`) and click **Add address**. Chrome asks you to allow access to that one address. Remove it there any time.
 
    Then reload the Atlas tab so the extension can attach to it.
-   *Check:* in Atlas, Settings → Claude Deep Research shows **Extension installed**.
+   *Check:* in Atlas, Settings → Claude shows **Extension installed**.
 
 **4. Run your first research.**
    1. In Atlas, open Chat, choose **Research a stock**, type a ticker (for example `AAPL`) and click **Deep research in Claude**.
    2. A Claude tab opens with Research turned on and the prompt filled in. Read it and press **send**.
    3. Keep that tab open. It takes about 10 minutes. A badge in the corner shows progress.
-   4. When it finishes, the research card appears in your Inbox in Atlas. Nothing is bought or sold unless you approve it there.
+   4. When it finishes, the research appears under Research in Atlas, on that company's page. Nothing is bought or sold unless you approve it there.
 
 **5. Optional, for better results.**
    - Connect SnapTrade to Claude so it reads your real holdings (steps at the end of this file).
