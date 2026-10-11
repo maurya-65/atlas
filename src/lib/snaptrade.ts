@@ -221,6 +221,9 @@ export async function quote(ticker: string): Promise<number | null> {
  * Real order through the user's own brokerage. Callers must enforce the live caps first (see trading.ts).
  * Market order, valid for the day, sized in dollars ("notional") so a $25 cap means exactly $25.
  */
+/** What SnapTrade answers when the broker has no such symbol. */
+const UNKNOWN_SYMBOL = /get_symbol_by_ticker/i;
+
 export async function placeRealOrder(ticker: string, side: "BUY" | "SELL", dollars: number, price: number | null) {
   const c = await creds();
   if (!c) throw new Error("No brokerage connected.");
@@ -240,11 +243,17 @@ export async function placeRealOrder(ticker: string, side: "BUY" | "SELL", dolla
       return data;
     } catch (e) {
       // Some brokers don't accept dollar-sized orders. Fall back to whole shares that still fit under the cap.
-      if (!price || price <= 0) throw new Error(snaptradeErrorText(e));
+      const reason = snaptradeErrorText(e);
+      if (UNKNOWN_SYMBOL.test(reason)) throw new Error(`Your broker doesn't list ${ticker}, so it can't be traded there.`);
+      if (!price || price <= 0) throw new Error(reason);
       const units = Math.floor(dollars / price);
       if (units < 1) {
+        const tooDear = `one share of ${ticker} costs $${price.toFixed(2)}, more than the $${dollars} limit`;
+        // Only call it a whole-share broker when that is what the broker said; otherwise pass its answer on.
         throw new Error(
-          `Your broker doesn't accept dollar-amount orders, and one share of ${ticker} ($${price.toFixed(2)}) costs more than the $${dollars} limit.`,
+          /notional/i.test(reason)
+            ? `Your broker only takes whole-share orders, and ${tooDear}.`
+            : `Your broker turned down the $${dollars} order for ${ticker} (it said: ${reason}). Whole shares can't be used instead: ${tooDear}.`,
         );
       }
       try {

@@ -276,6 +276,10 @@ export default function GuideView() {
             <strong>Real-money mode</strong> sends approved trades to your brokerage. You have to type LIVE to switch it on. Each trade is capped at $25 and each day at $100,
             whatever a card says.
           </li>
+          <li>
+            Some brokers only take whole shares, not dollar amounts. With those, a real trade only goes through for a share that costs less than the $25 limit; Atlas tells you
+            when a share is too expensive instead of buying more than the limit.
+          </li>
           <li>Even in real-money mode, ideas and morning-check suggestions stay paper trades.</li>
           <li>A copy of Atlas reached over the internet always stays in paper mode; real-money mode only works when Atlas runs on your own computer.</li>
         </Points>

@@ -86,6 +86,7 @@ Atlas is built so that a wrong answer from the model costs a bad suggestion, not
 
 - The model has no order-placing tool. Only a click on a decision card reaches `src/app/api/action/route.ts`, and a card can be decided once, so a double click does not trade twice.
 - Live orders are capped at $25 per trade and $100 per day in `src/lib/trading.ts`, whatever the card says.
+- A live order is sent as a dollar amount. A broker that only takes whole shares (the SnapTrade sandbox is one) gets whole shares instead, so under the $25 cap only a share that costs $25 or less can be bought there. Atlas says so instead of sending a bigger order.
 - Switching to live mode requires typing `LIVE` and a connected account. A hosted copy stays in paper mode.
 - Suggestions from the daily run are always paper trades.
 - Writes are accepted only from the Atlas page or its Chrome extension, and only as JSON (`src/proxy.ts`). Any other website you visit cannot plant a card or a trade.
