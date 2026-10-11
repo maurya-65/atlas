@@ -132,8 +132,8 @@ export default function ClaudeSection({ atlas }: Pick<ViewProps, "atlas">) {
             <Step n={3} title="Run your first research" status={<Badge variant="secondary">When ready</Badge>}>
               <Steps>
                 <li>
-                  Open <a href="#research/new" className={LINK}>Research → New research</a>, type a ticker such as <code className={CODE}>AAPL</code> and choose the
-                  Claude option.
+                  Open <a href="#research/new" className={LINK}>Research → New research</a>, type a ticker such as <code className={CODE}>AAPL</code> and press{" "}
+                  <strong className={STRONG}>Research in Claude</strong>, which appears next to Research once the extension is set up. The same button is on every company’s page.
                 </li>
                 <li>A Claude tab opens with Research turned on and the prompt filled in. Read it, then press send.</li>
                 <li>Keep that tab open for about 10 minutes. A small badge in its corner shows progress.</li>

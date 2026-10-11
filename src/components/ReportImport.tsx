@@ -59,7 +59,11 @@ export default function ReportImport({ atlas }: Pick<ViewProps, "atlas">) {
         </form>
         {status.kind === "done" && (
           <p className="mt-2 text-foreground" role="status">
-            Imported. You’ll find it in Research.
+            Imported. You’ll find it in{" "}
+            <a href="#research" className="font-medium underline decoration-white/30 underline-offset-2 hover:decoration-white/70">
+              Research
+            </a>
+            .
           </p>
         )}
         {status.kind === "error" && (

@@ -77,7 +77,11 @@ function AddRule({ onAdd }: { onAdd: (rule: NewRule) => Promise<void> }) {
           {working ? "Adding…" : "Add rule"}
         </Button>
       </div>
-      {ready && <p className="text-xs text-muted-foreground">Rule: {ruleText(kind, threshold, ticker.trim().toUpperCase())}</p>}
+      {ready ? (
+        <p className="text-xs text-muted-foreground">Rule: {ruleText(kind, threshold, ticker.trim().toUpperCase())}</p>
+      ) : (
+        <p className="text-xs text-muted-foreground">{byPrice ? "Enter a ticker and a price to add the rule." : "Enter a limit, for example 25, to add the rule."}</p>
+      )}
       {error && (
         <p className="text-sm text-live" role="alert">
           {error}

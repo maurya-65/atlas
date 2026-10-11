@@ -65,13 +65,23 @@ export function SinceLastCheck({ atlas }: { atlas: Atlas }) {
   if (!brief?.daily) {
     return (
       <Section title="Since the last check">
-        <p className={MUTED}>
-          No morning check has run yet. Turn it on under{" "}
-          <a href="#watching" className={LINK}>
-            Watching
-          </a>{" "}
-          and Atlas leaves a short brief here every day.
-        </p>
+        {atlas.state.daily?.enabled ? (
+          <p className={MUTED}>
+            The morning check is on but hasn’t run yet. Its first brief will appear here. You can change the time under{" "}
+            <a href="#watching" className={LINK}>
+              Watching
+            </a>
+            .
+          </p>
+        ) : (
+          <p className={MUTED}>
+            No morning check has run yet. Turn it on under{" "}
+            <a href="#watching" className={LINK}>
+              Watching
+            </a>{" "}
+            and Atlas leaves a short brief here every day.
+          </p>
+        )}
         {flags.length > 0 && (
           <div>
             <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">Your rules flag right now</p>

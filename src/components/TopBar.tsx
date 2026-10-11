@@ -19,7 +19,7 @@ interface Props {
 export default function TopBar({ title, description, mode, onToggleSidebar, sidebarOpen, activity }: Props) {
   const live = mode === "live";
   return (
-    <header className="shrink-0 px-3 pt-3 sm:px-5">
+    <header className="relative z-30 shrink-0 px-3 pt-3 sm:px-5">
       <div className="glass mx-auto flex h-14 w-full max-w-348 items-center gap-2 rounded-2xl px-3 sm:gap-3 sm:px-4">
         <Button variant="ghost" size="icon" onClick={onToggleSidebar} aria-expanded={sidebarOpen} aria-controls="atlas-sidebar" className="[&_svg]:size-5!">
           <PanelLeftIcon />

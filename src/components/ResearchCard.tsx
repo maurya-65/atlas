@@ -200,7 +200,7 @@ export default function ResearchCard({
       time={ran && <time dateTime={r.generatedAt}>{ran}</time>}
       title={
         <>
-          {r.ticker} <span className="font-normal text-muted-foreground">{r.companyName}</span>
+          {r.ticker} {r.companyName !== r.ticker && <span className="font-normal text-muted-foreground">{r.companyName}</span>}
         </>
       }
       summary={<Cited text={r.thesis} sources={r.sources} />}

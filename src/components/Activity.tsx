@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Job, Jobs } from "./jobs";
 import { XIcon } from "./icons";
 import { Button, cn } from "./ui";
@@ -23,6 +23,11 @@ function StatusDot({ status }: { status: Job["status"] }) {
 export function ActivityPill({ jobs }: { jobs: Jobs }) {
   const [open, setOpen] = useState(false);
   const running = jobs.running.length;
+  useEffect(() => {
+    const close = () => setOpen(false);
+    window.addEventListener("hashchange", close);
+    return () => window.removeEventListener("hashchange", close);
+  }, []);
   const toggle = () => {
     if (!open) jobs.markSeen();
     setOpen((o) => !o);

@@ -109,11 +109,17 @@ export async function setSchedule(patch: { enabled?: boolean; time?: string; dep
 }
 
 /** Current holdings in the order the daily run researches them: never researched first (biggest first), then longest ago. */
-export function watchList(portfolio: Portfolio, schedule: DailySchedule) {
+export function watchList(portfolio: Portfolio, schedule: DailySchedule, messages: ChatMessage[] = []) {
   const total = portfolio.total || 1;
+  // Research started from anywhere counts, not only the morning check's own.
+  const last: Record<string, string> = { ...schedule.researchedAt };
+  for (const m of messages) {
+    const t = m.research?.ticker;
+    if (t && (!last[t] || m.createdAt > last[t])) last[t] = m.createdAt;
+  }
   return portfolio.holdings
     .filter((h) => h.value > 0 && isResearchableStock(h.ticker, h.kind))
-    .map((h) => ({ ticker: h.ticker, name: h.name, weight: h.value / total, value: h.value, lastResearchedAt: schedule.researchedAt[h.ticker] ?? null }))
+    .map((h) => ({ ticker: h.ticker, name: h.name, weight: h.value / total, value: h.value, lastResearchedAt: last[h.ticker] ?? null }))
     .sort((a, b) => {
       if (!a.lastResearchedAt && !b.lastResearchedAt) return b.value - a.value;
       if (!a.lastResearchedAt) return -1;
@@ -134,7 +140,7 @@ export async function dailyState(): Promise<DailyState> {
   const now = new Date();
   let watch: DailyState["watch"] = [];
   try {
-    watch = watchList(await activePortfolio(), s.daily);
+    watch = watchList(await activePortfolio(), s.daily, s.messages);
   } catch {
     // portfolio unavailable: show the schedule without a watch list
   }
@@ -208,7 +214,7 @@ async function run(opts: { trigger: Trigger; onEvent?: (e: ResearchEvent) => voi
   const needsSpreading = hits.some((h) => h.rule.kind === "concentration" || h.rule.kind === "idle_cash");
 
   // d. Deep research, one stock after another. One failure doesn't stop the run.
-  const picks = watchList(p, sched).slice(0, Math.max(0, Math.min(3, sched.depth)));
+  const picks = watchList(p, sched, store0.messages).slice(0, Math.max(0, Math.min(3, sched.depth)));
   const researched: DailyBrief["researched"] = [];
   const researchedAt: Record<string, string> = {};
   for (const w of picks) {
