@@ -25,7 +25,11 @@ function Questions({ session, onSubmit, busy }: { session: IdeaSession; onSubmit
         onSubmit(session.questions.map((_, i) => typed[i].trim() || (picked[i] === YOU_DECIDE ? "" : picked[i])));
       }}
     >
-      <p className="text-sm text-muted-foreground">A few quick questions so the ideas fit you. Not sure about one? Leave it on “{YOU_DECIDE}”.</p>
+      <p className="text-sm text-muted-foreground">
+        {session.questions.length
+          ? `A few quick questions so the ideas fit you. Not sure about one? Leave it on “${YOU_DECIDE}”.`
+          : "Atlas has no questions for this one. It can go straight to the ideas."}
+      </p>
       {session.questions.map((q, i) => (
         <fieldset key={q.text} className="space-y-2.5">
           <legend className="text-sm font-medium">{q.text}</legend>
@@ -103,7 +107,7 @@ export default function IdeaSessionCard({ atlas, message, tracked, defaultOpen }
   const [open, setOpen] = useState(defaultOpen);
   const run = atlas.ideasRun && atlas.ideasRun.id === message.id ? atlas.ideasRun : null;
   const working = atlas.jobs.running.some((j) => j.kind === "ideas");
-  const status = run ? "Working on it" : session.status === "asking" ? "Waiting for your answers" : session.ideas.length ? `${session.ideas.length} ${session.ideas.length === 1 ? "idea" : "ideas"}` : "Nothing convincing";
+  const status = run ? "Working on it" : session.status === "asking" ? "Needs your answers" : session.ideas.length ? `${session.ideas.length} ${session.ideas.length === 1 ? "idea" : "ideas"}` : "Nothing convincing";
 
   return (
     <Card id={message.id}>
@@ -119,7 +123,7 @@ export default function IdeaSessionCard({ atlas, message, tracked, defaultOpen }
           <IdeaStageRail events={run.events} />
         ) : !open ? (
           <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-            Open
+            {session.status === "asking" ? "Continue" : "See ideas"}
           </Button>
         ) : session.status === "asking" ? (
           <Questions session={session} busy={working} onSubmit={(answers) => atlas.actions.answerIdeas(message.id, answers)} />

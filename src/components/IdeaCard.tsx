@@ -161,7 +161,7 @@ export default function IdeaCard({ atlas, messageId, idea, tracked }: { atlas: A
         <Fact label="Last month" value={signedPct(idea.move1m)} />
         <Fact label="Last 6 months" value={signedPct(idea.move6m)} />
         <Fact label="Below its yearly high" value={pct(idea.belowHigh, 0)} />
-        <Fact label="Ride" value={SWINGS[idea.swings]} />
+        <Fact label="Ups and downs" value={SWINGS[idea.swings]} />
         <Fact label="Pays dividends" value={idea.yield ? `${pct(idea.yield)} a year` : "No"} />
       </div>
 

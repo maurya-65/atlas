@@ -84,7 +84,7 @@ export default function IdeasView({ atlas, route }: ViewProps) {
               </button>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground">Atlas asks a few questions first, then the ideas appear on this page. Nothing is bought with real money.</p>
+          <p className="text-xs text-muted-foreground">Nothing is bought with real money.</p>
           {failed?.status === "failed" && !searching && <p className="text-sm text-live">That didn’t finish: {failed.error}</p>}
         </CardContent>
       </Card>
@@ -126,7 +126,7 @@ export default function IdeasView({ atlas, route }: ViewProps) {
                     </a>
                     <div className="max-w-40 truncate text-xs text-muted-foreground">{t.name}</div>
                   </Td>
-                  <Td className="text-right tabular-nums">{money(t.dollars, 0)}</Td>
+                  <Td className="text-right tabular-nums">{money(t.dollars)}</Td>
                   <Td className="hidden text-right tabular-nums sm:table-cell">{money(t.dollars + t.effect, 2)}</Td>
                   <Td className="text-right tabular-nums">
                     {t.effect >= 0 ? "+" : "−"}
