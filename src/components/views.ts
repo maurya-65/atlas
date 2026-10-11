@@ -2,10 +2,10 @@ import { useSyncExternalStore } from "react";
 
 /**
  * The sections of the single Atlas page. The URL hash picks one, and some sections have a second level:
- *   #home  #portfolio[/holdings|performance|paper|orders]  #research[/new|watchlist|scenarios|<TICKER>]
+ *   #home  #portfolio[/holdings|performance|paper|orders]  #ideas[/<id>]  #research[/new|watchlist|scenarios|<TICKER>]
  *   #decisions  #watching  #chat[/<id>]  #history  #settings[/<section>]
  */
-export type View = "home" | "portfolio" | "research" | "decisions" | "watching" | "chat" | "history" | "settings";
+export type View = "home" | "portfolio" | "ideas" | "research" | "decisions" | "watching" | "chat" | "history" | "settings";
 
 export interface ViewInfo {
   id: View;
@@ -19,6 +19,7 @@ export interface ViewInfo {
 export const VIEWS: ViewInfo[] = [
   { id: "home", label: "Home", title: "Home", description: "What needs you, what changed, and what Atlas is doing right now." },
   { id: "portfolio", label: "Portfolio", title: "Portfolio", description: "What you own, how it is doing, and your paper account." },
+  { id: "ideas", label: "Ideas", title: "Ideas", description: "Say what you want from your money. Atlas asks a few questions, then suggests checked ideas to try on paper." },
   { id: "research", label: "Research", title: "Research", description: "Everything Atlas knows about a company. Start a new research here." },
   { id: "decisions", label: "Decisions", title: "Decisions", description: "Trades and suggestions waiting for your yes or no, and what you decided before." },
   { id: "watching", label: "Watching", title: "Watching", description: "What Atlas keeps an eye on for you, and when it checks." },

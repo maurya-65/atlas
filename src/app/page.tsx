@@ -7,6 +7,7 @@ import ChatView from "@/components/ChatView";
 import DecisionsView from "@/components/DecisionsView";
 import HistoryView from "@/components/HistoryView";
 import HomeView from "@/components/HomeView";
+import IdeasView from "@/components/IdeasView";
 import { pendingDecisions } from "@/components/derive";
 import { XIcon } from "@/components/icons";
 import { Thinking } from "@/components/Messages";
@@ -23,6 +24,7 @@ import WatchingView from "@/components/WatchingView";
 const PAGES = {
   home: HomeView,
   portfolio: PortfolioView,
+  ideas: IdeasView,
   research: ResearchView,
   decisions: DecisionsView,
   watching: WatchingView,

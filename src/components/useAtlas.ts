@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { buildClaudePrompt, buildSectorPrompt, claudeUrl } from "@/lib/handoff";
-import type { Mode, ResearchEvent } from "@/lib/types";
+import type { IdeaEvent, Mode, ResearchEvent } from "@/lib/types";
 import { api, streamApi, type AppState } from "./format";
 import { useJobs, type Job } from "./jobs";
 import { companyHref, goTo } from "./views";
@@ -35,6 +35,8 @@ export function useAtlas() {
   const [asking, setAsking] = useState<string | null>(null);
   /** The decision card being acted on */
   const [choosing, setChoosing] = useState<string | null>(null);
+  /** What an Ideas search is doing right now, for its stage rail. `id` is the page it belongs to, once there is one. */
+  const [ideasRun, setIdeasRun] = useState<{ id: string | null; events: IdeaEvent[] } | null>(null);
   const jobs = useJobs();
 
   const refresh = useCallback(async () => {
@@ -179,6 +181,28 @@ export function useAtlas() {
     [jobs, refresh],
   );
 
+  /** Both steps of an Ideas search: the first asks the questions, the second finds the ideas. */
+  const findIdeas = useCallback(
+    (body: { action: "start"; prompt: string } | { action: "answer"; id: string; answers: string[] }) => {
+      const id = body.action === "answer" ? body.id : null;
+      return jobs
+        .run({ kind: "ideas", key: "ideas", label: "Looking for ideas", landing: { text: "Ideas", href: id ? `#ideas/${id}` : "#ideas" } }, async (job) => {
+          setIdeasRun({ id, events: [] });
+          job.setDetail("Reading what you asked");
+          await streamApi<IdeaEvent>("/api/ideas", body, (e) => {
+            setIdeasRun((run) => run && { ...run, events: [...run.events, e] });
+            job.setDetail(e.text);
+          });
+        })
+        .then(async (ok) => {
+          await refresh();
+          setIdeasRun(null);
+          return ok;
+        });
+    },
+    [jobs, refresh],
+  );
+
   const scan = useCallback(
     () =>
       jobs
@@ -267,6 +291,8 @@ export function useAtlas() {
     review,
     scan,
     runMorningCheck,
+    askIdeas: (prompt: string) => findIdeas({ action: "start", prompt }),
+    answerIdeas: (id: string, answers: string[]) => findIdeas({ action: "answer", id, answers }),
     choose,
     setMorningCheck: (patch: { enabled?: boolean; time?: string; depth?: number }) =>
       mutate("/api/daily", { ...patch, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
@@ -312,7 +338,7 @@ export function useAtlas() {
     claudeSectorLinkFor: (name: string) => claudeUrl(buildSectorPrompt(name, state?.portfolio?.holdings.map((h) => h.ticker) ?? [])),
   };
 
-  return { state, loadError, error, clearError: () => setError(null), refresh, asking, choosing, jobs, actions };
+  return { state, loadError, error, clearError: () => setError(null), refresh, asking, choosing, ideasRun, jobs, actions };
 }
 
 export type Atlas = ReturnType<typeof useAtlas> & { state: AppState };

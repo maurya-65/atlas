@@ -145,6 +145,8 @@ function describe(m: ChatMessage): { kind: string; text: string; href: string } 
       return { kind: "Research", text: m.research ? `${m.research.ticker}: ${STANCE_LABEL[m.research.stance]}` : plainText(m.text), href: m.research ? companyHref(m.research.ticker) : "#research" };
     case "scenario":
       return { kind: "What-if", text: m.scenario?.headline || m.scenario?.scenario || "What-if", href: "#research/scenarios" };
+    case "ideas":
+      return { kind: "Ideas", text: m.ideas?.summary || m.text, href: `#ideas/${m.id}` };
     case "constraint":
       return { kind: m.resolved ? "Decided" : "Decision", text: m.title || plainText(m.text), href: "#decisions" };
     case "daily":

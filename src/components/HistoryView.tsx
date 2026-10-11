@@ -13,6 +13,7 @@ const PAGE = 40;
 const FILTERS: { id: HistoryFilter; label: string; empty: string }[] = [
   { id: "all", label: "All", empty: "Nothing yet. When Atlas researches something, checks your portfolio or you make a decision, it is listed here." },
   { id: "research", label: "Research", empty: "No research yet. Start one from the Research page." },
+  { id: "ideas", label: "Ideas", empty: "No ideas yet. Ask for some on the Ideas page." },
   { id: "decisions", label: "Decisions", empty: "No decisions yet." },
   { id: "briefs", label: "Briefs", empty: "No briefs yet. The morning check writes one each time it runs." },
   { id: "trades", label: "Trades", empty: "No trades yet. Approved trades, paper or real, are listed here." },

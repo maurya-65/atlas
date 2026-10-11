@@ -124,10 +124,11 @@ export const receipts = (messages: ChatMessage[]) => newestFirst(messages.filter
 
 export const briefs = (messages: ChatMessage[]) => newestFirst(messages.filter((m) => m.kind === "daily" && m.daily));
 
-export type HistoryFilter = "all" | "research" | "decisions" | "briefs" | "trades" | "alerts";
+export type HistoryFilter = "all" | "research" | "ideas" | "decisions" | "briefs" | "trades" | "alerts";
 
 const HISTORY_KINDS: Record<Exclude<HistoryFilter, "all">, ChatMessage["kind"][]> = {
   research: ["research", "scenario"],
+  ideas: ["ideas"],
   decisions: ["constraint"],
   briefs: ["daily"],
   trades: ["receipt"],

@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
-import { ClockIcon, DashboardIcon, EyeIcon, GlobeIcon, InboxIcon, MessageIcon, PieIcon, PlugIcon, SearchIcon, XIcon } from "./icons";
+import { ClockIcon, DashboardIcon, EyeIcon, GlobeIcon, InboxIcon, LightbulbIcon, MessageIcon, PieIcon, PlugIcon, SearchIcon, XIcon } from "./icons";
 import { Button, cn } from "./ui";
 import { VIEWS, viewHref, type View } from "./views";
 
 const ICONS: Record<View, ReactNode> = {
   home: <DashboardIcon />,
   portfolio: <PieIcon />,
+  ideas: <LightbulbIcon />,
   research: <SearchIcon />,
   chat: <MessageIcon />,
   decisions: <InboxIcon />,
@@ -19,7 +20,7 @@ const ICONS: Record<View, ReactNode> = {
 // The sections follow the order of the work: look, understand, decide, review.
 const GROUPS: { label: string; views: View[] }[] = [
   { label: "Your money", views: ["home", "portfolio"] },
-  { label: "Understand", views: ["research", "chat"] },
+  { label: "Understand", views: ["ideas", "research", "chat"] },
   { label: "Decide and watch", views: ["decisions", "watching"] },
   { label: "Review", views: ["history"] },
   { label: "Setup", views: ["settings"] },

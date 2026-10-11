@@ -52,6 +52,20 @@ function describe(m: ChatMessage): Line {
       ),
     };
   }
+  if (m.kind === "ideas" && m.ideas) {
+    const i = m.ideas;
+    return {
+      kind: "Ideas",
+      text: oneLine(i.prompt, 90),
+      body: (
+        <>
+          <p>{i.status === "asking" ? "Waiting for your answers." : i.summary}</p>
+          {i.ideas.length > 0 && <p className="text-muted-foreground">{i.ideas.map((x) => x.ticker).join(", ")}</p>}
+          <Link href={`#ideas/${m.id}`}>Open on Ideas</Link>
+        </>
+      ),
+    };
+  }
   if (m.kind === "constraint") {
     if (!m.resolved) {
       return {

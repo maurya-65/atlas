@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import type { ResearchEvent } from "@/lib/types";
 
-export type JobKind = "research" | "whatif" | "review" | "scan" | "morning" | "claude";
+export type JobKind = "research" | "whatif" | "review" | "scan" | "morning" | "claude" | "ideas";
 
 export interface Job {
   id: string;
