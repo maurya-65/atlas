@@ -41,6 +41,7 @@ Three things are worth knowing before reading the code.
 - **What-if.** "What if Taiwan blocks chip exports?" A planner splits the scenario into the ways it could spread, researchers read the news for each, and a synthesizer maps it onto your holdings with a rough dollar range. The dollar math is done in code, not by the model.
 - **Scan and rules.** Rule checks (concentration, drawdown, idle cash, price levels) are plain arithmetic. Rules are added on the *Watching* page, which also shows what each one finds right now. *Check now* runs the rules, reads new filings and headlines, and posts a note or a decision card.
 - **Morning check.** Once a day: what changed, what the rules flagged, research on the next holding in rotation, and suggestions you can try as paper trades. Off until you turn it on, under *Watching*.
+- **Ideas.** Say what you want in plain words ("I have 20k, something safe that pays dividends"). Atlas asks a few short questions, then suggests up to five real US stocks or funds, which can be ones you don't own. Each has a reason, what it is, its main risk, what would make it wrong and how it fits what you hold. Every candidate is checked against market data first (it exists, is US-listed, trades enough) and set aside if not. All the numbers come from that data, not from the model, and a sentence with a figure the model wrote is cut. *Try on paper* shows what your portfolio would look like after, checks your cash and your one-stock limit, then places a paper order; it never places a live one. Ideas you tried are followed on the page.
 - **Paper account.** The practice copy of your account, under *Portfolio → Paper account*: the trades you approved, and what each would have gained or lost (worked out in code).
 - **Ask.** Questions about the portfolio or an investing term, answered in the current thread. If a question needs research or a what-if, the answer comes with a button that runs it, so a slow and costly job never starts without a click. Atlas keeps a one-line note of each answer so later answers have context.
 - **Paper and live mode.** Paper mode (the default) trades a simulated copy of your account priced with live quotes. Live mode sends real market orders through SnapTrade.
@@ -74,7 +75,7 @@ Set these in `.env.local`. `.env.example` has the same list with comments.
 | `CRON_SECRET`, `KV_REST_API_URL`, `KV_REST_API_TOKEN` | Hosted only. See [Deploying to Vercel](#deploying-to-vercel). |
 | `ATLAS_APP_URL` | The deployment's address, used in the notes the MCP server gives Claude. Default `http://localhost:3000`. |
 
-**Cost.** Most of a research's cost is the web pages the analysts read, plus $0.01 per web search. It measured about $1.50 per stock with four analysts, all on Opus at high effort. Nine analysts are kept near $1 by choosing the model per stage (`research.ts`): Haiku 5.5 for the six analysts that start from a prepared source list, Sonnet 5.5 for the three that plan their own searches and for the debate, and Opus 5.5 at high effort for the judge. Everything else runs at medium effort, and the debate's shared reading is cached. That total is an estimate until a run measures it; each run prints its cost to the server log (`[research NVDA] ~$…`), split into analysts, debate and judge. Questions in Chat use Claude Sonnet 5.5 at medium effort, about half a cent each (`CHAT_MODEL` in `src/lib/llm.ts`). The Claude Deep Research route below costs the API nothing.
+**Cost.** Most of a research's cost is the web pages the analysts read, plus $0.01 per web search. It measured about $1.50 per stock with four analysts, all on Opus at high effort. Nine analysts are kept near $1 by choosing the model per stage (`research.ts`): Haiku 5.5 for the six analysts that start from a prepared source list, Sonnet 5.5 for the three that plan their own searches and for the debate, and Opus 5.5 at high effort for the judge. Everything else runs at medium effort, and the debate's shared reading is cached. That total is an estimate until a run measures it; each run prints its cost to the server log (`[research NVDA] ~$…`), split into analysts, debate and judge. An Ideas search uses only Haiku 5.5 with no web search: three small calls (the questions, the candidate list, the write-up) and a spending limit per search in `ideas.ts`; it measured under a cent. Questions in Chat use Claude Sonnet 5.5 at medium effort, about half a cent each (`CHAT_MODEL` in `src/lib/llm.ts`). The Claude Deep Research route below costs the API nothing.
 
 ## Safety model
 
@@ -168,13 +169,13 @@ npm run typecheck
 npm run lint
 ```
 
-The tests cover the parts where a mistake costs money or leaks access: trade execution and the live caps, decision cards, rule checks and adding rules, sign-in and the write checks, research citations, which chat an answer belongs to, and the zips served for the extension and the skill. They need no keys and make no network calls; the model is replaced by a stand-in. They do not cover a real order reaching a broker, reading a real SnapTrade account, or the browser (including the extension).
+The tests cover the parts where a mistake costs money or leaks access: trade execution and the live caps, Ideas (ticker checks, spending limit, paper orders), decision cards, rule checks and adding rules, sign-in and the write checks, research citations, which chat an answer belongs to, and the zips served for the extension and the skill. They need no keys and make no network calls; the model is replaced by a stand-in. They do not cover a real order reaching a broker, reading a real SnapTrade account, or the browser (including the extension).
 
 ## Project layout
 
 ```
 src/app/            pages and API routes (Next.js App Router)
-src/components/     the UI: Home, Portfolio, Research, Chat, Decisions, Watching, History, Settings
+src/components/     the UI: Home, Portfolio, Ideas, Research, Chat, Decisions, Watching, History, Settings
 src/lib/            everything the app does, one file per concern (below)
 src/mcp/server.mts  MCP server
 src/proxy.ts        sign-in and write checks, run before every request
@@ -192,6 +193,7 @@ In `src/lib/`:
 - `sources.ts`: SEC EDGAR, Google News RSS, Federal Register
 - `research.ts`, `review.ts`: analysts, debate, judge, and posting the result
 - `scenario.ts`: what-if
+- `ideas.ts`, `market.ts`: the Ideas tab (questions, candidate checks, sizing, paper orders) and the market data it checks
 - `scan.ts`, `watch.ts`: headline triage and cards; one pass of rule checks plus the public-sources scan
 - `daily.ts`, `scheduler.ts`: the daily run and its timer (checked once a minute in the server process locally, `src/app/api/cron/daily/route.ts` on Vercel)
 - `chat.ts`, `threads.ts`: answering in a chat, the chat list, memory
